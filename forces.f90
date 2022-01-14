@@ -8,23 +8,21 @@
 
 ! ============ I N P U T S ==============
 
-        alam = 05d-2    ! Radii ratio
+        alam = 1d-0    ! Radii ratio
          mur = 1d+2    ! Viscosity ratio
-         ncl = .TRUE.  ! Non-continuum lubrication
-!        ncl = .FALSE. ! Non-continuum lubrication
+!        ncl = .TRUE.  ! Non-continuum lubrication
+         ncl = .FALSE. ! Non-continuum lubrication
          opp = .TRUE.  ! Orientation: opposing
 !        opp = .FALSE. ! Orientation: same
 
 ! ========= L O G   D I S T R. ========== 
 ! Logarithmic distribution of normalized
 ! gap size, xi = s — 2, in JO84 notation:
-      xi_min = 1d-5
+      xi_min = 1d-3
       xi_max = 1d+2
       sample = 99d0
       dlt_xi = DLOG ( xi_max / xi_min ) / sample
            s = 2d0 + xi_min + 3d-16
-!        eps = 0.001d0 ! Clearance
-!          s = 2d0 + eps * 2d0/(1d0+alam)
 ! ======================================= 
       CALL CPU_TIME(t0)
       DO i = 1, INT(sample)+1
@@ -33,40 +31,23 @@
 ! ============ M E T H O D ==============
 
 !     CALL J1915(opp,al,be,T1,T2,acu)
-!     WRITE(*,*) "J T1,T2=",T1,T2
 
 !     CALL SJ26M61EXP(opp,al,be,F1,F2,acu)
-!     WRITE(*,*) "SJ F1,F2=",F1,F2
-!     CALL SJ1926IMP(opp,al,be,F1,F2,acu)
-!     WRITE(*,*) "SJ F1,F2=",F1,F2
+      CALL SJ1926IMP(opp,al,be,F1,F2,acu)
 
 !     CALL H1937vdW(s,alam,1d1,5d-13,F1,F2)
-!     WRITE(*,*) "vdW F1,F2=",F1,F2
 
 !     CALL GCB66T(al,F1,T1,acu)
-!     WRITE(*,*)"GCB66T+ F1,T1",F1,T1
 !     CALL GCB66R(al,F1,T1,acu)
-!     WRITE(*,*)"GCB66R- F1,T1",F1,T1
 
 !     CALL ON69T(al,F1,T1,acu)
-!     WRITE(*,*)"ON69T- F1,T1",F1,T1
 !     CALL ON69R(al,F1,T1,acu)
-!     WRITE(*,*)"ON69R+ F1,T1",F1,T1
 
 !     CALL TORQUEFREES(opp,al,F1,acu)
 
 !     CALL ONM70R(opp,al,be,fg,F1,F2,T1,T2,acu)
-!     WRITE(*,*)"RO: F1,F2,T1,T2",F1,F2,T1,T2
 
-      CALL ONM70T(opp,al,be,fg,F1,F2,T1,T2,acu)
-!     WRITE(*,*)"TR: F1,F2,T1,T2",F1,F2,T1,T2
-!     WRITE(*,*)"fg"
-!     WRITE(*,*)fg(1,:)
-!     WRITE(*,*)fg(2,:)
-!     WRITE(*,*)fg(3,:)
-!     WRITE(*,*)fg(4,:)
-!     WRITE(*,*)
-!     WRITE(*,*)-fg(1,1) - fg(2,1),fg(1,2) + fg(2,2),-fg(1,1) + fg(2,1),-fg(1,2) + fg(2,2)
+!     CALL ONM70T(opp,al,be,fg,F1,F2,T1,T2,acu)
 
 !     CALL TORQUEFREE(opp,al,be,F1,F2,acu)
 
@@ -80,33 +61,25 @@
 !     CALL BRI78(mur,al,F1)
 
 !     CALL JO84XA(opp,ncl,s,alam,F1,F2,acu)
-!     WRITE(*,*) "XA", F1,F2
 !     CALL JO84YA(opp,s,alam,F1,F2,acu)
-!     WRITE(*,*)"YA: F1,F2",F1,F2
 !     CALL JO84YB(opp,s,alam,F1,F2,T1,T2,acu)
-!     WRITE(*,*)"YB: F1,F2,T1,T2",F1,F2,T1,T2
 !     CALL JO84YC(opp,s,alam,T1,T2,acu) ! fix CY12
-!     WRITE(*,*)"YC: T1,T2",T1,T2
 !     CALL JO84XC(opp,s,alam,T1,T2,acu)
-!     WRITE(*,*) "XC T1,T2=",T1,T2
-!     WRITE(*,*)
 
 !     CALL WAG05ISMX(opp,mur,s,alam,F1,F2)
 !     CALL WAG05ISMY(opp,s,alam,F1,F2)
 !     CALL ROT(opp,s,alam,F1,F2)
 
 !     CALL GMS20a(al,be,F1,F2)
-!     CALL GMS20b(al,F1) ! not tested
-!     WRITE(*,*)"GMS20b F1",F1
+!     CALL GMS20b(al,F1) ! wrong
 
 ! ============ O U T P U T ==============
       OPEN (1, file='output.dat')
-      WRITE(1,*) s-2d0, F1, F2
-!     WRITE(1,*) s-2d0, T1, T2
+      WRITE(1,*) s-2d0, F1, F2, T1, T2
       WRITE(*,*) s-2d0, F1, F2, T1, T2
 ! ======================================= 
 
-      STOP
+!     STOP
 
 ! ========= L O G   D I S T R. ==========
 ! Logarithmic distribution of normalized
@@ -257,8 +230,6 @@
       F1 = 1d0/3d0 * dsinh(al) * dabs(sum1) ! (34)
       F2 =-1d0/3d0 * dsinh(be) * dabs(sum2) ! (35)
       Fe = 4d0/3d0 * dsinh(al) * dabs(sum3) ! (37)
-!     write(*,*) Fe,sum1,sum2,sum3
-!     write(*,*) sum4,sum5,sum6,sum7
 
       RETURN
       END SUBROUTINE
@@ -978,7 +949,6 @@
       T2o= 0d0
       iN = 25
 1     allocate ( T(2*iN,2*iN+1), An(-1:iN+1), Bn(-1:iN+1) )
-      print*,"2*iN,sizeof(T)",2*iN,real(sizeof(T))/real(1024**3)
        j = 1 ! first droplet
 2      T = 0d0
 
@@ -1107,7 +1077,7 @@
         F2o = F2
         T1o = T1
         T2o = T2
-        WRITE(*,*) "n_max, F1, F2, T1, T2 = ", iN,F1,F2,T1,T2,rel
+!       WRITE(*,*) "n_max, F1, F2, T1, T2 = ", iN,F1,F2,T1,T2,rel
         GOTO 1
       ENDIF
 
@@ -1725,6 +1695,8 @@
       DOUBLE PRECISION, ALLOCATABLE, DIMENSION(:) :: fm1,fm2
       DOUBLE PRECISION Kn, lmbd0
       LOGICAL opp, ncl
+      
+      IF ( acu .LT. 1d-6 ) WRITE(*,*) "Consider decreasing accuracy!"
 
       rlam = 1d0/alam
        F1o = 0d0
@@ -1799,7 +1771,7 @@
          XA12 = XA12 + 2d0 * g11/(1d0+alam) * ( 1d0/(s-2d0) - f_nc(dlt0)/Kn )
          XA21 = XA21 + 2d0 * g12/(1d0+rlam) * ( 1d0/(s-2d0) - f_nc(dlt0)/Kn )
       ENDIF
-      WRITE(*,*)"XAxx",XA11,XA12,XA21,XA22
+!     WRITE(*,*)"XAxx",XA11,XA12,XA21,XA22
 
       IF (opp) THEN
          F1 = XA11 - (1d0+alam)/2d0 * XA12
@@ -1814,8 +1786,8 @@
          n0 = int(1.1 * float(n0)) ! 10% increase
          F1o= F1
          F2o= F2
-         WRITE(*,*) "n_max, F1, F2 = ", n0, F1, F2, rel
-!        GOTO 1
+!        WRITE(*,*) "n_max, F1, F2 = ", n0, F1, F2, rel
+         GOTO 1
       ENDIF
 
 !     WRITE (2,*) s-2d0, XA11c, XA11
@@ -1981,6 +1953,8 @@
       DOUBLE PRECISION, ALLOCATABLE, DIMENSION(:) :: fm1,fm2
       LOGICAL opp
 
+      IF ( acu .LT. 1d-6 ) WRITE(*,*) "Consider decreasing accuracy!"
+
       rlam = 1d0/alam
        F1o = 0d0
        F2o = 0d0
@@ -2039,10 +2013,6 @@
       YA12 =-YA12 * 2d0/(1d0+alam)
       YA21 =-YA21 * 2d0/(1d0+rlam)
 
-      WRITE(*,*) "YA11, (1d0+alam)/2d0 * YA12",YA11, (1d0+alam)/2d0 * YA12
-      WRITE(*,*) "YA22, (1d0+rlam)/2d0 * YA21",YA22, (1d0+rlam)/2d0 * YA21
-      WRITE(*,*) "YAxx",YA11,YA12,YA21,YA22
-
       IF (opp) THEN
          F1 = YA11 - (1d0+alam)/2d0 * YA12
          F2 = YA22 - (1d0+rlam)/2d0 * YA21
@@ -2052,13 +2022,13 @@
       ENDIF
 
       rel = max(dabs(F1-F1o)/dabs(F1),dabs(F2-F2o)/dabs(F2))
-!     IF ( rel .GT. acu ) THEN
+      IF ( rel .GT. acu ) THEN
          n0 = int(1.1 * float(n0)) ! 10% increase
          F1o= F1
          F2o= F2
 !        WRITE(*,*) "n_max, F1, F2 = ", n0, F1, F2, rel
-!        GOTO 1
-!     ENDIF
+         GOTO 1
+      ENDIF
 
       AY11 = AY11 + 1d0
       AY22 = AY22 + 1d0
@@ -2193,6 +2163,8 @@
       DOUBLE PRECISION, ALLOCATABLE, DIMENSION(:) :: fm1,fm2
       LOGICAL opp
 
+      IF ( acu .LT. 1d-6 ) WRITE(*,*) "Consider decreasing accuracy!"
+
       rlam = 1d0/alam
        F1o = 0d0
        F2o = 0d0
@@ -2250,14 +2222,6 @@
       YB21 = YB21 - g22*dlog(sc) - g32*sc*dlog(sc)
       YB12 = YB12 *-4d0/(1d0+alam)**2
       YB21 = YB21 *-4d0/(1d0+rlam)**2
-      WRITE (*,*) "YB11,YB12,YB21,YB22",YB11,YB12,YB21,YB22
-
-!     WRITE(*,*) "1/2*YB11, 2/3*YB11",1d0/2d0*YB11,2d0/3d0*YB11
-!     WRITE(*,*) "1/2*YB22, 2/3*YB22",1d0/2d0*YB22,2d0/3d0*YB22
-!     WRITE(*,*) "1/2*(1d0+alam)**2/4*YB12",1d0/2d0*(1d0+alam)**2/4d0*YB12
-!     WRITE(*,*) "2/3*(1d0+rlam)**2/4*YB12",2d0/3d0*(1d0+rlam)**2/4d0*YB12
-!     WRITE(*,*) "2/3*(1d0+alam)**2/4*YB21",2d0/3d0*(1d0+alam)**2/4d0*YB21
-!     WRITE(*,*) "1/2*(1d0+rlam)**2/4*YB21",1d0/2d0*(1d0+rlam)**2/4d0*YB21
 
       IF (opp) THEN
          F1 = 2d0/3d0 * (-YB11 - (1d0+alam)**2/4d0 * YB21 )
@@ -2429,6 +2393,8 @@
       DOUBLE PRECISION, ALLOCATABLE, DIMENSION(:) :: fm1,fm2
       LOGICAL opp
 
+      IF ( acu .LT. 1d-6 ) WRITE(*,*) "Consider decreasing accuracy!"
+
       rlam = 1d0/alam
        T1o = 0d0
        T2o = 0d0
@@ -2499,7 +2465,7 @@
       YC12 = YC12 * 8d0/(1d0+alam)**3
       YC21 = YC21 * 8d0/(1d0+rlam)**3
 
-      WRITE(*,*)"YC11,YC12,YC21,YC22",YC11,YC12,YC21,YC22
+!     WRITE(*,*)"YC11,YC12,YC21,YC22",YC11,YC12,YC21,YC22
 !     WRITE(*,*)"YC11, (1d0+alam)**3/8d0 * YC12",YC11, (1d0+alam)**3/8d0 * YC12
 !     WRITE(*,*)"YC22, (1d0+rlam)**3/8d0 * YC21",YC22, (1d0+rlam)**3/8d0 * YC21
 
@@ -2512,13 +2478,13 @@
       ENDIF
 
       rel = max(dabs(T1-T1o)/dabs(T1),dabs(T2-T2o)/dabs(T2))
-!     IF ( rel .GT. acu ) THEN
+      IF ( rel .GT. acu ) THEN
          n0 = int(1.1 * float(n0)) ! 10% increase
          T1o= T1
          T2o= T2
 !        WRITE(*,*) "n_max, T1, T2 = ", n0, T1, T2, rel
-!        GOTO 1
-!     ENDIF
+         GOTO 1
+      ENDIF
 
       CY11 = CY11 + 1d0
       CY22 = CY22 + 1d0
@@ -2651,6 +2617,8 @@
       DOUBLE PRECISION, ALLOCATABLE, DIMENSION(:) :: fm1,fm2
 !     REAL*16, ALLOCATABLE, DIMENSION(:) :: fm1,fm2
       LOGICAL opp
+
+      IF ( acu .LT. 1d-6 ) WRITE(*,*) "Consider decreasing accuracy!"
 
       rlam = 1d0/alam
        T1o = 0d0
@@ -2988,7 +2956,7 @@
       double precision, allocatable, dimension (:,:) :: T
 
       F1o= 0d0
-      iN = 50
+      iN = 10
 1     allocate ( T(iN,4), At(-1:iN+1) )
       At = 0d0
       DO i = 1, iN
@@ -3024,7 +2992,7 @@
       if ( criterion .gt. 1d-10 ) then
          iN = int(1.1 * float(iN)) ! 10% increase
          F1o= F1
-         write(*,*) "n_max, F1 = ", iN,F1
+!        write(*,*) "n_max, F1 = ", iN,F1
          deallocate ( T, At )
          goto 1
       else
