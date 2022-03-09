@@ -1,5 +1,10 @@
+!     Subroutines for computing hydrodynamic interaction between two spheres
+!     Developed by Ahmad Ababaei (ahmad.ababaei@imgw.pl) under PhD supervision
+!     of Professor Bogdan Rosa (bogdan.rosa@imgw.pl)
+!     Institute of Meteorology and Water Management — National Research Institute
+!     Podleśna 61, 01-673 Warsaw, Poland
+
       PROGRAM HYDROFORCES
-      USE OMP_LIB
 !     -mcmodel=medium -fopenmp export OMP_NUM_THREADS=<n>
       IMPLICIT DOUBLE PRECISION (A-H,K-Z)
       DOUBLE PRECISION fg(4,4)
@@ -7,21 +12,22 @@
       LOGICAL opp, ncl
 
       OPEN (1, file='output.dat')
+
 ! ============ I N P U T S ==============
 
         alam = 1d-0    ! Radii ratio
-         mur = 1d+2    ! Viscosity ratio
-!        ncl = .TRUE.  ! Non-continuum lubrication
-         ncl = .FALSE. ! Non-continuum lubrication
-         opp = .TRUE.  ! Orientation: opposing
-!        opp = .FALSE. ! Orientation: same
+         mur = 1d+6    ! Viscosity ratio
+         ncl = .TRUE.  ! Non-continuum lubrication ON
+!        ncl = .FALSE. ! Non-continuum lubrication OFF
+!        opp = .TRUE.  ! Orientation: opposing
+         opp = .FALSE. ! Orientation: same
 
 ! ========= L O G   D I S T R. ========== 
 ! Logarithmic distribution of normalized
 ! gap size, xi = s — 2, in JO84 notation:
       xi_min = 1d-3
       xi_max = 1d+2
-      sample = 99d0
+      sample = 19d0
       dlt_xi = DLOG ( xi_max / xi_min ) / sample
            s = 2d0 + xi_min + 3d-16
 ! ======================================= 
@@ -34,7 +40,7 @@
 !     CALL J1915(opp,al,be,T1,T2,acu)
 
 !     CALL SJ26M61EXP(opp,al,be,F1,F2,acu)
-      CALL SJ1926IMP(opp,al,be,F1,F2,acu)
+!     CALL SJ1926IMP(opp,al,be,F1,F2,acu)
 
 !     CALL H1937vdW(s,alam,1d1,5d-13,F1,F2)
 
@@ -44,10 +50,9 @@
 !     CALL ON69T(al,F1,T1,acu)
 !     CALL ON69R(al,F1,T1,acu)
 
-!     CALL TORQUEFREES(opp,al,F1,acu)
+      CALL TORQUEFREES(opp,al,F1,acu)
 
 !     CALL ONM70R(opp,al,be,fg,F1,F2,T1,T2,acu)
-
 !     CALL ONM70T(opp,al,be,fg,F1,F2,T1,T2,acu)
 
 !     CALL TORQUEFREE(opp,al,be,F1,F2,acu)
@@ -57,7 +62,7 @@
 !     CALL HHS73EXP(opp,mur,mur,al,be,F1,F2,acu)
 !     CALL HHS73IMP(opp,mur,mur,al,be,F1,F2,acu) ! A bit more accurate
 
-!     CALL RM74(opp,1d3,al,be,F1,F2,acu)
+!     CALL RM74(opp,1d-2,al,be,F1,F2,acu)
 
 !     CALL BRI78(mur,al,F1)
 
@@ -68,14 +73,15 @@
 !     CALL JO84XC(opp,s,alam,T1,T2,acu)
 
 !     CALL WAG05ISMX(opp,mur,s,alam,F1,F2)
-!     CALL WAG05ISMY(opp,s,alam,F1,F2)
-!     CALL ROT(opp,s,alam,F1,F2)
+!     CALL WAG05ISMY(opp,mur,s,alam,F1,F2)
+!     CALL ROT(opp,s,alam,F1,F2) ! not DOne
 
 !     CALL GMS20a(al,be,F1,F2)
-!     CALL GMS20b(al,F1) ! wrong
+!     CALL GMS20b(al,F1) ! wrong ?
 
 ! ============ O U T P U T ==============
       WRITE(1,*) s-2d0, F1, F2, T1, T2
+!     WRITE(1,*) s-2d0, F1
       WRITE(*,*) s-2d0, F1, F2, T1, T2
 ! ======================================= 
 
@@ -92,13 +98,13 @@
       WRITE(*,*) 'Elapsed time:', t1-t0 ,'s'
 
       CLOSE ( 1 )
-      END PROGRAM
+      END PROGRAM HYDROFORCES
 
 ! ======================= S U B R O U T I N E S ========================
 
 ! ============ M A P P I N G ============
       SUBROUTINE MAP(s,alam,al,be)
-      implicit double precision (a-z)
+      implicit DOUBLE PRECISION (a-z)
 !     Zinchenko explicit transform
 ! Here we map the regular JO84 (s, lambda)
 ! geometrical setting in two sets of
@@ -110,7 +116,7 @@
 ! notation or (xi1, xi2) in Jeffery (1915)
 ! notation, using formulae given by Zinchenko
 ! for example in Eq. (2.2) of his paper:
-! doi.org/10.1016/0021-8928(78)90051-5.
+! DOi.org/10.1016/0021-8928(78)90051-5.
 ! The methodology to derive these, however,
 ! is not straightforward, and he kindly
 ! sent it to us in a personal communication.
@@ -136,9 +142,9 @@
       END
 
 ! === Jeffery (1915) ===================================================
-!     Jeffery, G. B. (1915). On the steady rotation of a solid of revolution in a viscous fluid. Proceedings of the London Mathematical Society, 2(1), 327-338.
+!     Jeffery, G. B. (1915). On the steady rotation of a solid of revolution in a viscous fluid. Proceedings of the LonDOn Mathematical Society, 2(1), 327-338.
       SUBROUTINE J1915(opp,xi1,xi2,G1,G2,acu)
-      implicit double precision (a-h,k-z)
+      implicit DOUBLE PRECISION (a-h,k-z)
       logical opp
 
       sum1o = 0d0
@@ -170,9 +176,9 @@
 
 ! === Stimson & Jeffery (1926) - Explicit Method =======================
 !     Stimson, M., & Jeffery, G. B. (1926). The motion of two spheres in a viscous fluid. Proceedings of the Royal Society of London. Series A, Containing Papers of a Mathematical and Physical Character, 111(757), 110-116.
-!     Maude, A. D. (1961). End effects in a falling-sphere viscometer. British Journal of Applied Physics, 12(6), 293.      
+!     Maude, A. D. (1961). End effects in a falling-sphere viscometer. British Journal of Applied Physics, 12(6), 293.
       SUBROUTINE SJ26M61EXP(opp,al,be,F1,F2,acu)
-      implicit double precision (a-h,k-z)
+      implicit DOUBLE PRECISION (a-h,k-z)
       logical opp
 
       sum1o = 0d0
@@ -236,65 +242,65 @@
 
 ! ==== F U N C T I O N S :  S & J (1926) ===============================
 
-      double precision function A1(n,k,al,be)
-      double precision :: n,k,al,be
+      DOUBLE PRECISION FUNCTION A1(n,k,al,be)
+      DOUBLE PRECISION :: n,k,al,be
       A1 = 4d0*dexp(-(n+1d0/2d0)*(al-be))*dsinh((n+1d0/2d0)*(al-be))
       A1 = A1 + (2d0*n+1d0)**2*dexp(al-be)*dsinh(al-be)
       A1 = A1 + 2d0*(2d0*n-1d0)*dsinh((n+1d0/2d0)*(al-be))*dcosh((n+1d0/2d0)*(al+be))
       A1 = A1 - 2d0*(2d0*n+1d0)*dsinh((n+3d0/2d0)*(al-be))*dcosh((n-1d0/2d0)*(al+be))
       A1 = A1 - (2d0*n+1d0)*(2d0*n-1d0)*dsinh(al-be)*dcosh(al+be)
       A1 = A1 * (2d0*n+3d0) * k
-      return
-      end
+      RETURN
+      END
 
-      double precision function B1(n,k,al,be)
-      double precision :: n,k,al,be
+      DOUBLE PRECISION FUNCTION B1(n,k,al,be)
+      DOUBLE PRECISION :: n,k,al,be
       B1 = 2d0*(2d0*n-1d0)*dsinh((n+1d0/2d0)*(al-be))*dsinh((n+1d0/2d0)*(al+be))
       B1 = B1 - 2d0*(2d0*n+1d0)*dsinh((n+3d0/2d0)*(al-be))*dsinh((n-1d0/2d0)*(al+be))
       B1 = B1 + (2d0*n+1d0)*(2d0*n-1d0)*dsinh(al-be)*dsinh(al+be)
       B1 = B1 *-(2d0*n+3d0) * k
-      return
-      end
+      RETURN
+      END
 
-      double precision function C1(n,k,al,be)
-      double precision :: n,k,al,be
+      DOUBLE PRECISION FUNCTION C1(n,k,al,be)
+      DOUBLE PRECISION :: n,k,al,be
       C1 = 4d0*dexp(-(n+1d0/2d0)*(al-be))*dsinh((n+1d0/2d0)*(al-be))
       C1 = C1 - (2d0*n+1d0)**2*dexp(be-al)*dsinh(al-be)
       C1 = C1 + 2d0*(2d0*n+1d0)*dsinh((n-1d0/2d0)*(al-be))*dcosh((n+3d0/2d0)*(al+be))
       C1 = C1 - 2d0*(2d0*n+3d0)*dsinh((n+1d0/2d0)*(al-be))*dcosh((n+1d0/2d0)*(al+be))
       C1 = C1 + (2d0*n+1d0)*(2d0*n+3d0)*dsinh(al-be)*dcosh(al+be)
       C1 = C1 *-(2d0*n-1d0) * k
-      return
-      end
+      RETURN
+      END
 
-      double precision function D1(n,k,al,be)
-      double precision :: n,k,al,be
+      DOUBLE PRECISION FUNCTION D1(n,k,al,be)
+      DOUBLE PRECISION :: n,k,al,be
       D1 = 2d0*(2d0*n+1d0)*dsinh((n-1d0/2d0)*(al-be))*dsinh((n+3d0/2d0)*(al+be))
       D1 = D1 - 2d0*(2d0*n+3d0)*dsinh((n+1d0/2d0)*(al-be))*dsinh((n+1d0/2d0)*(al+be))
       D1 = D1 + (2d0*n+1d0)*(2d0*n+3d0)*dsinh(al-be)*dsinh(al+be)
       D1 = D1 * (2d0*n-1d0) * k
-      return
-      end
+      RETURN
+      END
 
-      double precision function Delta(n,al,be)
-      double precision :: n,al,be
+      DOUBLE PRECISION FUNCTION Delta(n,al,be)
+      DOUBLE PRECISION :: n,al,be
       Delta = 4d0*dsinh((n+1d0/2d0)*(al-be))**2-((2d0*n+1d0)*dsinh(al-be))**2
-      return
-      end
+      RETURN
+      END
 
 ! ==== F U N C T I O N S :  M (1961) ===================================
 
-      double precision function A2(n,k,al,be)
-      double precision :: n,k,al,be
+      DOUBLE PRECISION FUNCTION A2(n,k,al,be)
+      DOUBLE PRECISION :: n,k,al,be
       A2 = 2d0*(2d0*n-1d0)*dsinh((n+1d0/2d0)*(al-be))*dsinh((n+1d0/2d0)*(al+be))
       A2 = A2 - 2d0*(2d0*n+1d0)*dsinh((n+3d0/2d0)*(al-be))*dsinh((n-1d0/2d0)*(al+be))
       A2 = A2 - (2d0*n+1d0)*(2d0*n-1d0)*dsinh(al-be)*dsinh(al+be)
       A2 = A2 * (2d0*n+3d0) * k
-      return
-      end
+      RETURN
+      END
 
-      double precision function B2(n,k,al,be)
-      double precision :: n,k,al,be
+      DOUBLE PRECISION FUNCTION B2(n,k,al,be)
+      DOUBLE PRECISION :: n,k,al,be
 !     B2 =-4d0*dexp((n+1d0/2d0)*(al-be))*dsinh((n+1d0/2d0)*(al-be))         !   typo?!
       B2 =-4d0*dexp(-(n+1d0/2d0)*(al-be))*dsinh((n+1d0/2d0)*(al-be))
       B2 = B2 - (2d0*n+1d0)**2*dexp(al-be)*dsinh(al-be)
@@ -303,67 +309,67 @@
 !     B2 = B2 + (2d0*n+1d0)*(2d0*n-1d0)*dsinh(al-be)*dcosh(al-be)           !   typo?!
       B2 = B2 + (2d0*n+1d0)*(2d0*n-1d0)*dsinh(al-be)*dcosh(al+be)
       B2 = B2 *-(2d0*n+3d0) * k
-      return
-      end
+      RETURN
+      END
 
-      double precision function C2(n,k,al,be)
-      double precision :: n,k,al,be
+      DOUBLE PRECISION FUNCTION C2(n,k,al,be)
+      DOUBLE PRECISION :: n,k,al,be
 !     C2 = 2d0*(2d0*n+1d0)*dsinh((n-1d0/2d0)*(al-be))*dsinh((n+3d0/2d0)*(al-be))      !   typo?!
       C2 = 2d0*(2d0*n+1d0)*dsinh((n-1d0/2d0)*(al-be))*dsinh((n+3d0/2d0)*(al+be))
 !     C2 = C2 - 2d0*(2d0*n+3d0)*dsinh((n+1d0/2d0)*(al-be))*dsinh((n+1d0/2d0)*(al-be)) !   typo?!
       C2 = C2 - 2d0*(2d0*n+3d0)*dsinh((n+1d0/2d0)*(al-be))*dsinh((n+1d0/2d0)*(al+be))
       C2 = C2 - (2d0*n+1d0)*(2d0*n+3d0)*dsinh(al-be)*dsinh(al+be)
       C2 = C2 *-(2d0*n-1d0) * k
-      return
-      end
+      RETURN
+      END
 
-      double precision function D2(n,k,al,be)
-      double precision :: n,k,al,be
-!     D2 =-4d0*dexp(-(n+1d0/2d0)*(al-be))*dsinh((n+1d0/2d0)*(al+be))               !   typo?!
+      DOUBLE PRECISION FUNCTION D2(n,k,al,be)
+      DOUBLE PRECISION :: n,k,al,be
+!     D2 =-4d0*dexp(-(n+1d0/2d0)*(al-be))*dsinh((n+1d0/2d0)*(al+be))        !   typo?!
       D2 =-4d0*dexp(-(n+1d0/2d0)*(al-be))*dsinh((n+1d0/2d0)*(al-be))
       D2 = D2 + (2d0*n+1d0)**2*dexp(be-al)*dsinh(al-be)
       D2 = D2 + 2d0*(2d0*n+1d0)*dsinh((n-1d0/2d0)*(al-be))*dcosh((n+3d0/2d0)*(al+be))
       D2 = D2 - 2d0*(2d0*n+3d0)*dsinh((n+1d0/2d0)*(al-be))*dcosh((n+1d0/2d0)*(al+be))
       D2 = D2 - (2d0*n+1d0)*(2d0*n+3d0)*dsinh(al-be)*dcosh(al+be)
       D2 = D2 * (2d0*n-1d0) * k
-      return
-      end
+      RETURN
+      END
 
 ! ==== E Q U A L - S I Z E   S P H E R E S :  S & J (1926) =============
 
-      double precision function A_equal(n,k,al)
-      double precision :: n,k,al
+      DOUBLE PRECISION FUNCTION A_equal(n,k,al)
+      DOUBLE PRECISION :: n,k,al
       A_equal = 2d0*(1d0-dexp(-(2d0*n+1d0)*al))+(2d0*n+1d0)*(dexp(2d0*al)-1d0)
       A_equal = A_equal / ( 2d0*dsinh((2d0*n+1d0)*al)+(2d0*n+1d0)*dsinh(2d0*al) )
       A_equal = A_equal *-(2d0*n+3d0) * k
-      return
-      end
+      RETURN
+      END
 
-      double precision function C_equal(n,k,al)
-      double precision :: n,k,al
+      DOUBLE PRECISION FUNCTION C_equal(n,k,al)
+      DOUBLE PRECISION :: n,k,al
       C_equal = 2d0*(1d0-dexp(-(2d0*n+1d0)*al))+(2d0*n+1d0)*(1d0-dexp(-2d0*al))
       C_equal = C_equal / ( 2d0*dsinh((2d0*n+1d0)*al)+(2d0*n+1d0)*dsinh(2d0*al) )
       C_equal = C_equal * (2d0*n-1d0) * k
-      return
-      end
+      RETURN
+      END
 
-      double precision function lambda1(n,al)
-      double precision :: n,al
+      DOUBLE PRECISION FUNCTION lambda1(n,al)
+      DOUBLE PRECISION :: n,al
       lambda1 = 4d0*dsinh(al*(n+1d0/2d0))**2-((2d0*n+1d0)*dsinh(al))**2
       lambda1 = lambda1 / ( 2d0*dsinh(al*(2d0*n+1d0))+(2d0*n+1d0)*dsinh(al*2d0) )
       lambda1 = 1d0 - lambda1
       lambda1 = lambda1 * n*(n+1d0)/(2d0*n-1d0)/(2d0*n+3d0)
-      return
-      end
+      RETURN
+      END
 
-      double precision function lambda2(n,al)
-      double precision :: n,al
+      DOUBLE PRECISION FUNCTION lambda2(n,al)
+      DOUBLE PRECISION :: n,al
       lambda2 = 4d0*dcosh(al*(n+1d0/2d0))**2+((2d0*n+1d0)*dsinh(al))**2
       lambda2 = lambda2 / ( 2d0*dsinh(al*(2d0*n+1d0))-(2d0*n+1d0)*dsinh(al*2d0) )
       lambda2 = 1d0 - lambda2
       lambda2 = lambda2 * n*(n+1d0)/(2d0*n-1d0)/(2d0*n+3d0)
-      return
-      end
+      RETURN
+      END
 
 ! === Stimson & Jeffery (1926) - Implicit Method =======================
 !     Stimson, M., & Jeffery, G. B. (1926). The motion of two spheres in a viscous fluid. Proceedings of the Royal Society of London. Series A, Containing Papers of a Mathematical and Physical Character, 111(757), 110-116.
@@ -375,8 +381,8 @@
 !     but also an "opposing" direction, that is, Maude's solution.
       SUBROUTINE SJ1926IMP(opp,al,be,F1,F2,acu)
       USE OMP_LIB
-      implicit double precision (a-h,k-z)
-      double precision, dimension(4,5) :: T
+      implicit DOUBLE PRECISION (a-h,k-z)
+      DOUBLE PRECISION, dimension(4,5) :: T
       integer nd
       logical opp
 
@@ -430,8 +436,7 @@
          T(4,5) =-(2d0*n-1d0)*(2d0*n+3d0)*k*( dexp((n-1d0/2d0)*be) - dexp((n+3d0/2d0)*be) ) ! same direction
          ENDIF
 
-!        CALL GAUSS(4,5,T)
-         CALL GAUSSP(4,5,T,id)
+         CALL GAUSS(4,5,T)
 
           sum1 = sum1o + SUM(T(1:4,5))
           sum2 = sum2o + T(1,5) - T(2,5) + T(3,5) - T(4,5)
@@ -452,9 +457,9 @@
 ! ======================================================================
 
 ! === Hamaker (1937) - van der Waals ===================================
-!     Hamaker, H. C. (1937). The London—van der Waals attraction between spherical particles. physica, 4(10), 1058-1072.
+!     Hamaker, H. C. (1937). The LonDOn—van der Waals attraction between spherical particles. physica, 4(10), 1058-1072.
       SUBROUTINE H1937vdW(s,alam,aa,A,F1,F2)
-      implicit double precision (a-h,k-z)
+      implicit DOUBLE PRECISION (a-h,k-z)
 
 !     A  = 5d-13    ! Hamaker constant g.cm2/s2 
       a1 = aa / 1d4 ! radius in cm
@@ -462,7 +467,7 @@
       mu = 1.7d-4   ! dyn visc of air
       pi = 4d0*datan(1d0)
 
-!     Dimensional formulation: doi.org/10.1016/S0031-8914(37)80203-7
+      !     Dimensional formulation: doi.org/10.1016/S0031-8914(37)80203-7
 !     r  = (a1+a2)/2d0*s
 !     D1 = r**2-(a1+a2)**2
 !     D2 = r**2-(a1-a2)**2
@@ -491,14 +496,14 @@
 ! in (4.40) in the paper
 
       SUBROUTINE GCB66T(al,F1,T1,acu)
-      implicit double precision (a-h,k-z)
-      double precision, allocatable, dimension (:)   :: At
-      double precision, allocatable, dimension (:,:) :: T
+      implicit DOUBLE PRECISION (a-h,k-z)
+      DOUBLE PRECISION, allocatable, dimension (:)   :: At
+      DOUBLE PRECISION, allocatable, dimension (:,:) :: T
 
       F1o= 0d0
       T1o= 0d0
       iN = 50
-1     allocate ( T(iN,4), At(-1:iN+1) )
+1     ALLOCATE ( T(iN,4), At(-1:iN+1) )
       At = 0d0
       DO i = 1, iN
          n = dble(i)
@@ -563,14 +568,14 @@
 ! in (4.40) in the paper
 
       SUBROUTINE GCB66R(al,F1,T1,acu)
-      implicit double precision (a-h,k-z)
-      double precision, allocatable, dimension (:)   :: Ar
-      double precision, allocatable, dimension (:,:) :: T
+      implicit DOUBLE PRECISION (a-h,k-z)
+      DOUBLE PRECISION, allocatable, dimension (:)   :: Ar
+      DOUBLE PRECISION, allocatable, dimension (:,:) :: T
 
       F1o= 0d0
       T1o= 0d0
       iN = 50
-1     allocate ( T(iN,4), Ar(-1:iN+1) )
+1     ALLOCATE ( T(iN,4), Ar(-1:iN+1) )
       Ar = 0d0
       DO i = 1, iN
          n = dble(i)
@@ -632,30 +637,30 @@
 
 ! === F U N C T I O N S :  G C B (1966) ================================
 
-      double precision function gam(n,al)
-      double precision :: n,al
+      DOUBLE PRECISION FUNCTION gam(n,al)
+      DOUBLE PRECISION :: n,al
       gam = dtanh((n+5d-1)*al)/dtanh(al)
-      return
-      end
+      RETURN
+      END
 
-      double precision function tau(n,al)
-      double precision :: n,al
+      DOUBLE PRECISION FUNCTION tau(n,al)
+      DOUBLE PRECISION :: n,al
       tau = (dexp(-(n+15d-1)*al)/(2d0*n+3d0)-dexp(-(n-5d-1)*al)/(2d0*n-1d0))/dsqrt(2d0)
-      return
-      end
+      RETURN
+      END
 ! ======================================================================
 
 ! === O'Neill (1969) - Rotation ========================================
-!     O'Neill, M. E. (1969). Exact solutions of the equations of slow viscous flow generated by the asymmetrical motion of two equal spheres. Applied Scientific Research, 21(1), 452-466.
+!     O'Neill, M. E. (1969). Exact solutions of the equations of slow viscous flow generated by the asymmetrical motion of two equal spheres. Applied ScientIFic Research, 21(1), 452-466.
       SUBROUTINE ON69R(al,f1,g1,acu)
-      implicit double precision (a-h,k-z)
-      double precision, allocatable, dimension (:)   :: An
-      double precision, allocatable, dimension (:,:) :: T
+      implicit DOUBLE PRECISION (a-h,k-z)
+      DOUBLE PRECISION, allocatable, dimension (:)   :: An
+      DOUBLE PRECISION, allocatable, dimension (:,:) :: T
 
       f1o= 0d0
       g1o= 0d0
       iN = 50
-1     allocate ( T(iN,4), An(-1:iN+1) )
+1     ALLOCATE ( T(iN,4), An(-1:iN+1) )
       An = 0d0
       DO i = 1, iN
          n = dble(i)
@@ -708,14 +713,14 @@
 ! === O'Neill (1969) - Translation =====================================
 !     O'Neill, M. E. (1969). Exact solutions of the equations of slow viscous flow generated by the asymmetrical motion of two equal spheres. Applied Scientific Research, 21(1), 452-466.
       SUBROUTINE ON69T(al,f2,g2,acu)
-      implicit double precision (a-h,k-z)
-      double precision, allocatable, dimension (:)   :: An
-      double precision, allocatable, dimension (:,:) :: T
+      implicit DOUBLE PRECISION (a-h,k-z)
+      DOUBLE PRECISION, allocatable, dimension (:)   :: An
+      DOUBLE PRECISION, allocatable, dimension (:,:) :: T
 
       f2o= 0d0
       g2o= 0d0
       iN = 50
-1     allocate ( T(iN,4), An(-1:iN+1) )
+1     ALLOCATE ( T(iN,4), An(-1:iN+1) )
       An = 0d0
       DO i = 1, iN
          n = dble(i)
@@ -761,10 +766,10 @@
       END SUBROUTINE
 ! ======================================================================
 
-! === Torque-free translation for same-size spheres ====================
+! === Forces acting on a pair of freely rotating equal-sized spheres ===
 
       SUBROUTINE TORQUEFREES(opp,al,F1,acu)
-      implicit double precision (a-h,k-z)
+      implicit DOUBLE PRECISION (a-h,k-z)
       logical opp
 
       IF (opp) THEN
@@ -785,8 +790,6 @@
           T_rot = T1
       ENDIF
 
-!     WRITE(*,*) "Free rotation Omega", T_tra / T_rot
-
       F1 = F_tra - F_rot * T_tra / T_rot
 
       RETURN
@@ -796,10 +799,10 @@
 ! === O'Neill & Majumdar (1970) - Rotation =============================
 !     O'Neill, M. E., & Majumdar, R. (1970). Asymmetrical slow viscous fluid motions caused by the translation or rotation of two spheres. Part I: The determination of exact solutions for any values of the ratio of radii and separation parameters. Zeitschrift für angewandte Mathematik und Physik ZAMP, 21(2), 164-179.
       SUBROUTINE ONM70R(opp,al,be,fg,F1,F2,T1,T2,acu)
-      implicit double precision (a-h,k-z)
-      double precision, allocatable, dimension (:)   :: An, Bn
-      double precision, allocatable, dimension (:,:) :: T
-      double precision :: fg(4,4)
+      implicit DOUBLE PRECISION (a-h,k-z)
+      DOUBLE PRECISION, allocatable, dimension (:)   :: An, Bn
+      DOUBLE PRECISION, allocatable, dimension (:,:) :: T
+      DOUBLE PRECISION :: fg(4,4)
       logical opp
 
       F1o= 0d0
@@ -807,7 +810,7 @@
       T1o= 0d0
       T2o= 0d0
       iN = 25
-1     allocate ( T(2*iN,2*iN+1), An(-1:iN+1), Bn(-1:iN+1) )
+1     ALLOCATE ( T(2*iN,2*iN+1), An(-1:iN+1), Bn(-1:iN+1) )
        j = 1 ! first droplet
 2      T = 0d0
       DO i = 1, iN
@@ -852,8 +855,8 @@
       An = 0d0
       Bn = 0d0
       DO i = 1, iN
-         An(i) = T(2*i  ,2*iN+1) ! for G
-         Bn(i) = T(2*i-1,2*iN+1) ! for G
+         An(i) = T(2*i  ,2*iN+1)
+         Bn(i) = T(2*i-1,2*iN+1)
       ENDDO
 
        f11 = 0d0
@@ -906,7 +909,7 @@
            al =-be
            be = tmp
 
-!     Normalization: -6.pi.mu.a_i**2.Omega_i   &   -8.pi.mu.a_i**3.Omega_i
+!     Normalization: —6πμa²Ω  &  —8πμa³Ω
       IF (opp) THEN
          F1 =-fg(1,1) - fg(2,1)
          F2 = fg(1,2) + fg(2,2)
@@ -937,10 +940,10 @@
 ! === O'Neill & Majumdar (1970) - Translation ==========================
 !     O'Neill, M. E., & Majumdar, R. (1970). Asymmetrical slow viscous fluid motions caused by the translation or rotation of two spheres. Part I: The determination of exact solutions for any values of the ratio of radii and separation parameters. Zeitschrift für angewandte Mathematik und Physik ZAMP, 21(2), 164-179.
       SUBROUTINE ONM70T(opp,al,be,fg,F1,F2,T1,T2,acu)
-      implicit double precision (a-h,k-z)
-      double precision, allocatable, dimension (:)   :: An, Bn
-      double precision, allocatable, dimension (:,:) :: T
-      double precision :: fg(4,4)
+      implicit DOUBLE PRECISION (a-h,k-z)
+      DOUBLE PRECISION, allocatable, dimension (:)   :: An, Bn
+      DOUBLE PRECISION, allocatable, dimension (:,:) :: T
+      DOUBLE PRECISION :: fg(4,4)
       logical opp
 
       F1o= 0d0
@@ -948,7 +951,7 @@
       T1o= 0d0
       T2o= 0d0
       iN = 25
-1     allocate ( T(2*iN,2*iN+1), An(-1:iN+1), Bn(-1:iN+1) )
+1     ALLOCATE ( T(2*iN,2*iN+1), An(-1:iN+1), Bn(-1:iN+1) )
        j = 1 ! first droplet
 2      T = 0d0
 
@@ -993,8 +996,8 @@
       An = 0d0
       Bn = 0d0
       DO i = 1, iN
-         An(i) = T(2*i  ,2*iN+1) ! for G
-         Bn(i) = T(2*i-1,2*iN+1) ! for G
+         An(i) = T(2*i  ,2*iN+1)
+         Bn(i) = T(2*i-1,2*iN+1)
       ENDDO
 
        f21 = 0d0
@@ -1058,16 +1061,17 @@
       fg(4,3) = g22
       fg(4,4) = g21
 
-      IF (opp) THEN ! second droplet
+!     Normalization: —6πμaV  &  —8πμa²V
+      IF (opp) THEN
          F1 = F1 - f22
          F2 = F2 + f21
          T1 = T1 + g22
          T2 = T2 + g21
       ELSE
-         F1 = F1 + f22  ! Normalization: -6 pi mu a1 V1
-         F2 = F2 + f21  ! Normalization: -6 pi mu a2 V2
-         T1 = T1 - g22  ! Normalization: -8 pi mu a1**2 V1
-         T2 = T2 + g21  ! Normalization: -8 pi mu a2**2 V1
+         F1 = F1 + f22
+         F2 = F2 + f21
+         T1 = T1 - g22
+         T2 = T2 + g21
       ENDIF
 
       rel = max(dabs(F1-F1o)/dabs(F1),dabs(F2-F2o)/dabs(F2),dabs(T1-T1o)/dabs(T1),dabs(T2-T2o)/dabs(T2))
@@ -1087,85 +1091,85 @@
 
 ! === F U N C T I O N S :  O M (1970) ==================================
 
-      double precision function alpha(n,al,be)
-      double precision :: n,al,be
+      DOUBLE PRECISION FUNCTION alpha(n,al,be)
+      DOUBLE PRECISION :: n,al,be
       alpha = dsinh(al-be)/dsinh(al)/dsinh(be)/dsinh((n+5d-1)*(al-be))
       alpha = alpha * dsinh((n+5d-1)*(al+be))
-      return
-      end
+      RETURN
+      END
 
-      double precision function gamm(n,al,be)
-      double precision :: n,al,be
+      DOUBLE PRECISION FUNCTION gamm(n,al,be)
+      DOUBLE PRECISION :: n,al,be
       gamm = dsinh(al-be)/dsinh(al)/dsinh(be)/dsinh((n+5d-1)*(al-be))
       gamm = gamm * dcosh((n+5d-1)*(al+be))
-      return
-      end
+      RETURN
+      END
 
-      double precision function dlta(n,al,be)
-      double precision :: n,al,be
+      DOUBLE PRECISION FUNCTION dlta(n,al,be)
+      DOUBLE PRECISION :: n,al,be
       dlta = dsinh(al-be)/dsinh(al)/dsinh(be)/dsinh((n+5d-1)*(al-be))
       dlta = dlta * dcosh((n+5d-1)*(al-be))
-      return
-      end
+      RETURN
+      END
 
-      double precision function kappa(al,be)
-      double precision :: al,be
+      DOUBLE PRECISION FUNCTION kappa(al,be)
+      DOUBLE PRECISION :: al,be
       kappa = dsinh(al+be)/dsinh(al)/dsinh(be)
-      return
-      end
+      RETURN
+      END
 
-      double precision function lambda(n,al)
-      double precision :: n,al
+      DOUBLE PRECISION FUNCTION lambda(n,al)
+      DOUBLE PRECISION :: n,al
       lambda = dexp(-(n+5d-1)*al)/dsqrt(2d0)
       lambda = lambda * ( dexp(-al)/(2d0*n+3d0) - dexp(al)/(2d0*n-1d0) )
-      return
-      end
+      RETURN
+      END
 
-      double precision function D_1R(n,al,be)
-      double precision :: n,al,be
+      DOUBLE PRECISION FUNCTION D_1R(n,al,be)
+      DOUBLE PRECISION :: n,al,be
       D_1R =-(2d0*n+1d0)**2*dsinh((n+5d-1)*be)/dsinh((n+5d-1)*(al-be))
       D_1R = D_1R * ( dexp(al)/(2d0*n-1d0) + dexp(-al)/(2d0*n+3d0) )
       D_1R = D_1R + (2d0*n-1d0)*dsinh((n-05d-1)*be)/dsinh((n-05d-1)*(al-be))
       D_1R = D_1R + (2d0*n+3d0)*dsinh((n+15d-1)*be)/dsinh((n+15d-1)*(al-be))
       D_1R = D_1R * dsqrt(8d0) *dexp(-(n+05d-1)*al)/(2d0*n+1d0)/dsinh(al)
-      return
-      end
+      RETURN
+      END
 
-      double precision function D_2R(n,al,be)
-      double precision :: n,al,be
+      DOUBLE PRECISION FUNCTION D_2R(n,al,be)
+      DOUBLE PRECISION :: n,al,be
       D_2R =-(2d0*n+1d0)**2*dcosh((n+5d-1)*be)/dsinh((n+5d-1)*(al-be))
       D_2R = D_2R * ( dexp(al)/(2d0*n-1d0) + dexp(-al)/(2d0*n+3d0) )
       D_2R = D_2R + (2d0*n-1d0)*dcosh((n-05d-1)*be)/dsinh((n-05d-1)*(al-be))
       D_2R = D_2R + (2d0*n+3d0)*dcosh((n+15d-1)*be)/dsinh((n+15d-1)*(al-be))
       D_2R = D_2R * dsqrt(8d0) *dexp(-(n+05d-1)*al)/(2d0*n+1d0)/dsinh(al)
-      return
-      end
+      RETURN
+      END
 
-      double precision function D_1T(n,al,be)
-      double precision :: n,al,be
+      DOUBLE PRECISION FUNCTION D_1T(n,al,be)
+      DOUBLE PRECISION :: n,al,be
       D_1T =  2d0 * dexp(-(n+05d-1)*al)*dsinh((n+05d-1)*be)/dsinh((n+05d-1)*(al-be))
       D_1T = D_1T - dexp(-(n-05d-1)*al)*dsinh((n-05d-1)*be)/dsinh((n-05d-1)*(al-be))
       D_1T = D_1T - dexp(-(n+15d-1)*al)*dsinh((n+15d-1)*be)/dsinh((n+15d-1)*(al-be))
       D_1T = D_1T * dsqrt(8d0)
-      return
-      end
+      RETURN
+      END
 
-      double precision function D_2T(n,al,be)
-      double precision :: n,al,be
+      DOUBLE PRECISION FUNCTION D_2T(n,al,be)
+      DOUBLE PRECISION :: n,al,be
       D_2T =  2d0 * dexp(-(n+05d-1)*al)*dcosh((n+05d-1)*be)/dsinh((n+05d-1)*(al-be))
       D_2T = D_2T - dexp(-(n-05d-1)*al)*dcosh((n-05d-1)*be)/dsinh((n-05d-1)*(al-be))
       D_2T = D_2T - dexp(-(n+15d-1)*al)*dcosh((n+15d-1)*be)/dsinh((n+15d-1)*(al-be))
       D_2T = D_2T * dsqrt(8d0)
-      return
-      end
+      RETURN
+      END
 
 ! ======================================================================
 
-! === Torque-free translation (free rotation) ==========================
+! === Forces acting on a pair of freely rotating unequal-sized spheres =
 !     In O'Neill & Majumdar (1970), by setting the torques equal to zero, i.e. (5.16) = (5.17) = 0, we allow the particles to freely rotate. This leads to a system of equations that describes the angular velocities as functions of translational velocities, which then could be used in (5.14) and (5.15) to compute torque-free forces acting on two spheres translating normal to their line of centers.
       SUBROUTINE TORQUEFREE(opp,al,be,F1,F2,acu)
-      implicit double precision (a-h,k-z)
-      double precision :: fg(4,4), Om(2,3)
+      implicit DOUBLE PRECISION (a-h,k-z)
+      DOUBLE PRECISION :: fg(4,4), Om(2,3)
       logical opp
 
       k = dsinh(al) / dsinh(-be)
@@ -1187,7 +1191,7 @@
 
       CALL GAUSS(2,3,Om)
 !     WRITE(*,*) "Free Rotation Omega", Om(:,3)
-      ! CHEecKKKKKKKKKKKKKKKKKKKKKKKK
+!     CHECK
 !     fg(1,2) = 4d0/3d0 * fg(4,3)
 !     fg(2,1) = 4d0/3d0 * fg(3,4)
 
@@ -1231,8 +1235,8 @@
 
 ! === F U N C T I O N S :  W W (1972) ================================
 
-      double precision function lambdaWW72(n,al,si)
-      double precision :: n,al,si,denom
+      DOUBLE PRECISION FUNCTION lambdaWW72(n,al,si)
+      DOUBLE PRECISION :: n,al,si,denom
       lambdaWW72 = 2d0*dsinh((2d0*n+1d0)*al)+(2d0*n+1d0)*dsinh(2d0*al)
       lambdaWW72 = lambdaWW72 - 4d0*dsinh((n+1d0/2d0)*al)**2
       lambdaWW72 = lambdaWW72 + ( (2d0*n+1d0)*dsinh(al) )**2
@@ -1243,15 +1247,15 @@
            denom = 2d0*dsinh((2d0*n+1d0)*al)+(2d0*n+1d0)*dsinh(2d0*al)  ! guess!
            denom = denom * si + 2d0*(dcosh((2d0*n+1d0)*al)+dcosh(2d0*al))
       lambdaWW72 = lambdaWW72 / denom
-      return
-      end
+      RETURN
+      END
 
 ! ======================================================================
 
 ! === Haber, Hetsroni, Solan (1973) - Explicit Method ==================
 !     Haber, S., Hetsroni, G., & Solan, A. (1973). On the low Reynolds number motion of two droplets. International Journal of Multiphase Flow, 1(1), 57-71.
       SUBROUTINE HHS73EXP(opp,lama,lamb,al,be,F1,F2,acu)
-      implicit double precision (a-h,k-z)
+      implicit DOUBLE PRECISION (a-h,k-z)
       logical opp
 
           j = 1 ! first droplet
@@ -1316,99 +1320,99 @@
 
 ! === F U N C T I O N S :  H H S (1973)  A P P E N D I X  C ============
 
-      double precision function delta0(n,k1,al,be)
-      double precision :: n,k1,al,be
+      DOUBLE PRECISION FUNCTION delta0(n,k1,al,be)
+      DOUBLE PRECISION :: n,k1,al,be
       delta0 = (2d0*n+3d0)*dsinh((n+3d0/2d0)*(al-be))*dexp(-(n-1d0/2d0)*(al+be))
       delta0 = delta0-(2d0*n-1d0)*dexp(-(n+3d0/2d0)*(al+be))*dsinh((n-1d0/2d0)*(al-be))
       delta0 = delta0*4d0*k1
-      return
-      end
+      RETURN
+      END
 
-      double precision function deltabar0(n,k1,al,be)
-      double precision :: n,k1,al,be
+      DOUBLE PRECISION FUNCTION deltabar0(n,k1,al,be)
+      DOUBLE PRECISION :: n,k1,al,be
       deltabar0 =-(2d0*n+3d0)*dexp(-(n-1d0/2d0)*(al-be))*dsinh((n+3d0/2d0)*(al-be))
       deltabar0 = deltabar0+(2d0*n-1d0)*dexp(-(n+3d0/2d0)*(al-be))*dsinh((n-1d0/2d0)*(al-be))
       deltabar0 = deltabar0*4d0*k1
-      return
-      end
+      RETURN
+      END
 
-      double precision function delta1(n,k1,al,be)
-      double precision :: n,k1,al,be
+      DOUBLE PRECISION FUNCTION delta1(n,k1,al,be)
+      DOUBLE PRECISION :: n,k1,al,be
       delta1 = 2d0*(2d0*n-1d0)*(2d0*n+3d0)*dexp(-(2d0*n+1d0)*be)
       delta1 = delta1-(2d0*n+3d0)**2*dexp(-(n-1d0/2d0)*(al+be))*dcosh((n+3d0/2d0)*(al-be))
       delta1 = delta1-(2d0*n-1d0)**2*dexp(-(n+3d0/2d0)*(al+be))*dcosh((n-1d0/2d0)*(al-be))
       delta1 = delta1-(2d0*n-1d0)*(2d0*n+3d0)*dexp(-(n-1d0/2d0)*(al+be))*dsinh((n+3d0/2d0)*(al-be))
       delta1 = delta1-(2d0*n-1d0)*(2d0*n+3d0)*dexp(-(n+3d0/2d0)*(al+be))*dsinh((n-1d0/2d0)*(al-be)) ! note: typo
       delta1 =-delta1*k1
-      return
-      end
+      RETURN
+      END
 
-      double precision function deltabar1(n,k1,al,be)
-      double precision :: n,k1,al,be
+      DOUBLE PRECISION FUNCTION deltabar1(n,k1,al,be)
+      DOUBLE PRECISION :: n,k1,al,be
       deltabar1 =-2d0*(2d0*n-1d0)*(2d0*n+3d0)*dcosh(2d0*be)
       deltabar1 = deltabar1+(2d0*n+3d0)**2*dexp(-(n-1d0/2d0)*(al-be))*dcosh((n+3d0/2d0)*(al-be))
       deltabar1 = deltabar1+(2d0*n-1d0)**2*dexp(-(n+3d0/2d0)*(al-be))*dcosh((n-1d0/2d0)*(al-be))
       deltabar1 = deltabar1+(2d0*n-1d0)*(2d0*n+3d0)*dexp(-(n-1d0/2d0)*(al-be))*dsinh((n+3d0/2d0)*(al-be))
       deltabar1 = deltabar1+(2d0*n-1d0)*(2d0*n+3d0)*dexp(-(n+3d0/2d0)*(al-be))*dsinh((n-1d0/2d0)*(al-be))
       deltabar1 =-deltabar1*k1
-      return
-      end
+      RETURN
+      END
 
-      double precision function delta2(n,k1,al,be)
-      double precision :: n,k1,al,be
+      DOUBLE PRECISION FUNCTION delta2(n,k1,al,be)
+      DOUBLE PRECISION :: n,k1,al,be
       delta2 = 2d0*(2d0*n-1d0)*(2d0*n+3d0)*dexp(-(2d0*n+1d0)*al)
       delta2 = delta2-(2d0*n+3d0)**2*dexp(-(n-1d0/2d0)*(al+be))*dcosh((n+3d0/2d0)*(al-be))
       delta2 = delta2-(2d0*n-1d0)**2*dexp(-(n+3d0/2d0)*(al+be))*dcosh((n-1d0/2d0)*(al-be))
       delta2 = delta2+(2d0*n-1d0)*(2d0*n+3d0)*dexp(-(n-1d0/2d0)*(al+be))*dsinh((n+3d0/2d0)*(al-be))
       delta2 = delta2+(2d0*n-1d0)*(2d0*n+3d0)*dexp(-(n+3d0/2d0)*(al+be))*dsinh((n-1d0/2d0)*(al-be))
       delta2 =-delta2*k1
-      return
-      end
+      RETURN
+      END
 
-      double precision function deltabar2(n,k1,al,be)
-      double precision :: n,k1,al,be
+      DOUBLE PRECISION FUNCTION deltabar2(n,k1,al,be)
+      DOUBLE PRECISION :: n,k1,al,be
       deltabar2 =-2d0*(2d0*n-1d0)*(2d0*n+3d0)*dcosh(2d0*al)
       deltabar2 = deltabar2+(2d0*n+3d0)**2*dexp(-(n-1d0/2d0)*(al-be))*dcosh((n+3d0/2d0)*(al-be))
       deltabar2 = deltabar2+(2d0*n-1d0)**2*dexp(-(n+3d0/2d0)*(al-be))*dcosh((n-1d0/2d0)*(al-be))
       deltabar2 = deltabar2+(2d0*n-1d0)*(2d0*n+3d0)*dexp(-(n-1d0/2d0)*(al-be))*dsinh((n+3d0/2d0)*(al-be))
       deltabar2 = deltabar2+(2d0*n-1d0)*(2d0*n+3d0)*dexp(-(n+3d0/2d0)*(al-be))*dsinh((n-1d0/2d0)*(al-be))
       deltabar2 =-deltabar2*k1
-      return
-      end
+      RETURN
+      END
 
-      double precision function delta3(n,k1,al,be)
-      double precision :: n,k1,al,be
+      DOUBLE PRECISION FUNCTION delta3(n,k1,al,be)
+      DOUBLE PRECISION :: n,k1,al,be
       delta3 = (2d0*n-1d0)*(2d0*n+3d0)*(dexp(-(2d0*n+1d0)*be)-dexp(-(2d0*n+1d0)*al))
       delta3 = delta3-(2d0*n+1d0)*(2d0*n+3d0)*dexp(-(n-1d0/2d0)*(al+be))*dsinh((n+3d0/2d0)*(al-be))
       delta3 = delta3-(2d0*n+1d0)*(2d0*n-1d0)*dexp(-(n+3d0/2d0)*(al+be))*dsinh((n-1d0/2d0)*(al-be))
       delta3 =-delta3*2d0*k1 ! typo: negative sign mentioned by Zinchenko
-      return
-      end
+      RETURN
+      END
 
-      double precision function deltabar3(n,k1,al,be)
-      double precision :: n,k1,al,be
+      DOUBLE PRECISION FUNCTION deltabar3(n,k1,al,be)
+      DOUBLE PRECISION :: n,k1,al,be
       deltabar3 =-2d0*(2d0*n-1d0)*(2d0*n+1d0)*(2d0*n+3d0)*dsinh(al-be)*dcosh(al+be)
       deltabar3 = deltabar3+(2d0*n+1d0)**3*dsinh(2d0*(al-be))
       deltabar3 = deltabar3+2d0*(2d0*n+1d0)**2*dcosh(2d0*(al-be))
       deltabar3 = deltabar3-8d0*dexp(-(2d0*n+1d0)*(al-be))-2d0*(2d0*n-1d0)*(2d0*n+3d0)
       deltabar3 =-deltabar3*k1
-      return
-      end
+      RETURN
+      END
 
-      double precision function Delt(n,al,be,lama,lamb)
-      double precision :: n,al,be,lama,lamb
+      DOUBLE PRECISION FUNCTION Delt(n,al,be,lama,lamb)
+      DOUBLE PRECISION :: n,al,be,lama,lamb
       Delt = 4d0*dsinh((n-1d0/2d0)*(al-be))*dsinh((n+3d0/2d0)*(al-be))
       Delt = Delt+(lama+lamb)*(2d0*dsinh((2d0*n+1d0)*(al-be))-(2d0*n+1d0)*dsinh(2d0*(al-be)))
       Delt = Delt+(lama*lamb)*(4d0*dsinh((n+1d0/2d0)*(al-be))**2-((2d0*n+1d0)*dsinh(al-be))**2)
-      return
-      end      
+      RETURN
+      END      
 ! ======================================================================
 
 ! === Haber, Hetsroni, Solan (1973) - Implicit Method ==================
 !     Haber, S., Hetsroni, G., & Solan, A. (1973). On the low Reynolds number motion of two droplets. International Journal of Multiphase Flow, 1(1), 57-71.
       SUBROUTINE HHS73IMP(opp,lama,lamb,al,be,F1,F2,acu)
-      implicit double precision (a-h,k-z)
-      double precision, dimension(8,9) :: T
+      implicit DOUBLE PRECISION (a-h,k-z)
+      DOUBLE PRECISION, dimension(8,9) :: T
       logical opp
 
       sum1o = 0d0
@@ -1517,27 +1521,27 @@
       END SUBROUTINE
 
 ! === F U N C T I O N S :  H H S (1973)  A P P E N D I X  B ============
-      double precision function f(n,x)
-      double precision :: n,x
+      DOUBLE PRECISION FUNCTION f(n,x)
+      DOUBLE PRECISION :: n,x
       f = (2d0*n-1d0)*dexp(-(n+3d0/2d0)*x)-(2d0*n+3d0)*dexp(-(n-1d0/2d0)*x)
-      return
-      end
+      RETURN
+      END
 
-      double precision function g(n,x)
-      double precision :: n,x
+      DOUBLE PRECISION FUNCTION g(n,x)
+      DOUBLE PRECISION :: n,x
       g = (2d0*n+3d0)*dexp(-(n+3d0/2d0)*x)-(2d0*n-1d0)*dexp(-(n-1d0/2d0)*x)
-      return
-      end
+      RETURN
+      END
 ! ======================================================================
 
 ! === Reed & Morrison (1974) ===========================================
-!     Reed, L. D., & Morrison Jr, F. A. (1974). Particle interactions in viscous flow at small values of Knudsen numxi2r. Journal of Aerosol Science, 5(2), 175-189.
+!     Reed, L. D., & Morrison Jr, F. A. (1974). Particle interactions in viscous flow at small values of Knudsen number. Journal of Aerosol Science, 5(2), 175-189.
       SUBROUTINE RM74(opp,Kn,xi1,xi2,F1,F2,acu)
-      implicit double precision (a-h,k-z)
-      double precision, allocatable, dimension (:,:) :: T
+      implicit DOUBLE PRECISION (a-h,k-z)
+      DOUBLE PRECISION, allocatable, dimension (:,:) :: T
       logical opp
 
-      Cla= 1.5d0 * Kn
+      Cla= 1.5d0 * Kn ! ASSUMED !
       F1o= 0d0
       F2o= 0d0
       in = 50
@@ -1658,10 +1662,10 @@
 !     Beshkov, V. N., Radoev, B. P., & Ivanov, I. B. (1978). Slow motion of two droplets and a droplet towards a fluid or solid interface. International Journal of Multiphase Flow, 4(5-6), 563-570.
 !     Kim, S., & Karrila, S. J. (2013). Microhydrodynamics: principles and selected applications. Courier Corporation.      
       SUBROUTINE BRI78(mur,al,F1)
-      implicit double precision (a-h,k-z)
+      implicit DOUBLE PRECISION (a-h,k-z)
 
       sumo = 0d0
-      do i = 1, 100000
+      DO i = 1, 100000
          n = dble(i)
         Kn = n*(n+1d0)/(2d0*n-1d0)/(2d0*n+3d0) ! two typos in Beshkov et al.
 
@@ -1673,19 +1677,18 @@
       suma = sumo + Kn*( N0 + mur * N1 ) / ( D0 + mur * D1 )
 
          criterion = dabs((suma-sumo))/dabs(suma)
-         if ( criterion .lt. 1d-10 ) then
+         IF ( criterion .lt. 1d-10 ) THEN
 !           write(*,*) "n_max, sum = ", i,suma
-            goto 1
-         endif
+            GOTO 1
+         ENDIF
          sumo = suma
-      enddo
+      ENDDO
 
 1     F1 = 2d0/3d0*dsinh(al) * suma  ! normalized by -6.pi.mu.a1.V1
 
       RETURN
       END SUBROUTINE
 ! ======================================================================
-     
 
 ! === Jeffrey & Onishi (1984) - XA =====================================
 !     Jeffrey, D. J., & Onishi, Y. (1984). Calculation of the resistance and mobility functions for two unequal rigid spheres in low-Reynolds-number flow. Journal of Fluid Mechanics, 139, 261-290.
@@ -1696,7 +1699,7 @@
       DOUBLE PRECISION Kn, lmbd0
       LOGICAL opp, ncl
       
-      IF ( acu .LT. 1d-6 ) WRITE(*,*) "Consider decreasing accuracy!"
+!     IF ( acu .LT. 1d-6 ) WRITE(*,*) "Consider decreasing accuracy!"
 
       rlam = 1d0/alam
        F1o = 0d0
@@ -1760,10 +1763,14 @@
       XA21 = XA21 *-2.d0/(1.d0+rlam)
 
       IF ( ncl ) THEN
-        lmbd0 = 1d-5
+        lmbd0 = 1d-5 ! cm (0.1 micron)
            a1 = 10d0 / 1d4
            a2 = alam * a1
+
            Kn = 2d0 * lmbd0 / ( a1 + a2 )
+!          Kn = lmbd0 * ( a1 + a2 ) / ( 2d0 * a1 * a2 )
+!          Kn = 3d-3
+
          dlt0 = ( s - 2d0 ) / Kn
          XA11c= XA11
          XA11 = XA11 + g11 * ( f_nc(dlt0)/Kn - 1d0/(s-2d0) )
@@ -1782,13 +1789,13 @@
       ENDIF
 
       rel = max(dabs(F1-F1o)/dabs(F1),dabs(F2-F2o)/dabs(F2))
-      IF ( rel .GT. acu ) THEN
+!     IF ( rel .GT. acu ) THEN
          n0 = int(1.1 * float(n0)) ! 10% increase
          F1o= F1
          F2o= F2
 !        WRITE(*,*) "n_max, F1, F2 = ", n0, F1, F2, rel
-         GOTO 1
-      ENDIF
+!        GOTO 1
+!     ENDIF
 
 !     WRITE (2,*) s-2d0, XA11c, XA11
 
@@ -1883,7 +1890,7 @@
 ! all INDX2es that start IS,IQ-IS after which we test the final argument
 ! which can be IP-N+1, IP-N or IP-N-1. The range of N is chosen to keep IP-N+1
 ! non-negative, and the range of IS is chosen to keep the combination IS,IQ-IS
-! legal. Thus the other possibilities require IF tests and jumps.
+! legal. Thus the other possibilities require if tests and jumps.
           FACTOR=(2D0*XN*XS-XN-XS+2D0)/(XN+XS)
 
           PSUM=PSUM+FAC*FCTR1*FACTOR*P(INDX2(IS,IQ-IS,IP-N+1))/(2D0*XS-1D0)
@@ -1921,8 +1928,9 @@
       RETURN
       END SUBROUTINE
 
-! ==== F U N C T I O N :  S & K (1996) ================================
+! ==== F U N C T I O N :  N O N - C O N T I N U U M   L U B ============
 !     Sundararajakumar, R. R., & Koch, D. L. (1996). Non-continuum lubrication flows between particles colliding in a gas. Journal of Fluid Mechanics, 313, 283-308.
+!     Dhanasekaran, J., Roy, A., & Koch, D. L. (2021). Collision rate of bidisperse spheres settling in a compressional non-continuum gas flow. Journal of Fluid Mechanics, 910.
       FUNCTION f_nc ( dlt0 )
       DOUBLE PRECISION :: pi, t0, dlt0, f_nc
 
@@ -1940,6 +1948,32 @@
 
       ELSEIF ( dlt0 .GT. 10.55d0 ) THEN
       f_nc = 0.0452d0 * ( ( 6.649d0 + dlt0 ) * DLOG ( 1d0+6.649d0/dlt0 ) - 6.649d0 )
+
+      ENDIF
+      END FUNCTION
+! ================      
+!     How, M. L. S., Koch, D. L., & Collins, L. R. (2021). Non-continuum tangential lubrication gas flow between two spheres. Journal of Fluid Mechanics, 920.
+      FUNCTION f_nc2 ( dlt0 )
+      DOUBLE PRECISION :: pi, k1, t0, dlt0, f_nc2
+
+      pi = 4d0 * DATAN(1d0)
+
+      IF ( dlt0 .LE. 0.35d0 ) THEN
+      t0    = DLOG ( 1d0 / dlt0 ) + 0.8d0
+      f_nc2 = pi/6d0 * ( DLOG(t0) - 1d0/t0 - 1d0/t0**2 - 2d0/t0**3 ) &
+            + 1.5475d0*dlt0**2 + 0.7896d0*dlt0 + 0.4094d0
+
+      ELSEIF ( dlt0 .GT. 0.35d0 .AND. dlt0 .LE. 9d-1  ) THEN
+      f_nc2 = 6d-5*dlt0**-3 - 172d-5*dlt0**-2 + 169d-4*dlt0**-1 &
+            + 1769d-4*DLOG(dlt0**-1) + 3744d-4
+
+      ELSEIF ( dlt0 .GT. 9d-1 .AND. dlt0 .LE. 4.4d0 ) THEN
+      f_nc2 = 5d-4*dlt0**4 - 835d-5*dlt0**3 + 5605d-5*dlt0**2 - 2196d-4*dlt0 + 5661d-4 &
+            - 55d-4*dlt0**-1 - 1965d-5*dlt0**-2 + 231d-4*dlt0**-3
+
+      ELSEIF ( dlt0 .GT. 4.4d0 ) THEN
+      k1    = 1.016d0
+      f_nc2 = 1d0/(18d0*k1**2) * ( ( 6d0*k1 + dlt0 ) * DLOG ( 1d0+6d0*k1/dlt0 ) - 6d0*k1 )
 
       ENDIF
 
@@ -2104,7 +2138,7 @@
 !  all INDX2es that start IS,IQ-IS after which we test the final argument
 !  which can be IP-N+1, IP-N or IP-N-1. The range of N is chosen to keep IP-N+1
 !  non-negative, and the range of IS is chosen to keep the combination IS,IQ-IS
-!  legal. Thus the other possibilities require IF tests and jumps.
+!  legal. Thus the other possibilities require if tests and jumps.
 
           FACTOR=2D0*(XN*XS+1D0)**2/(XN+XS)
           PSUM=PSUM+FAC*FCTR1*(4D0+XN*XS-FACTOR)*P(INDX2(IS,IQ-IS,IP-N+1))/(XS*(2D0*XS-1D0))
@@ -2154,10 +2188,9 @@
       END SUBROUTINE
 ! ======================================================================
 
-
 ! === Jeffrey & Onishi (1984) - YB =====================================
 !     Jeffrey, D. J., & Onishi, Y. (1984). Calculation of the resistance and mobility functions for two unequal rigid spheres in low-Reynolds-number flow. Journal of Fluid Mechanics, 139, 261-290.
-!     Townsend, A. K. (2018). Generating, from scratch, the near-field asymptotic forms of scalar resistance functions for two unequal rigid spheres in low-Reynolds-number flow. arXiv preprint arXiv:1802.08226.      
+!     Townsend, A. K. (2018). Generating, from scratch, the near-field asymptotic forms of scalar resistance functions for two unequal rigid spheres in low-Reynolds-number flow. arXiv preprint arXiv:1802.08226.
       SUBROUTINE JO84YB(opp,s,alam,F1,F2,T1,T2,acu)
       IMPLICIT DOUBLE PRECISION (a-h,o-z)
       DOUBLE PRECISION, ALLOCATABLE, DIMENSION(:) :: fm1,fm2
@@ -2236,13 +2269,13 @@
       ENDIF
 
       rel = max(dabs(F1-F1o)/dabs(F1),dabs(F2-F2o)/dabs(F2))
-!     IF ( rel .GT. acu ) THEN
+      IF ( rel .GT. acu ) THEN
          n0 = int(1.1 * float(n0)) ! 10% increase
          F1o= F1
          F2o= F2
 !        WRITE(*,*) "n_max, F1, F2, T1, T2 = ", n0, F1, F2, T1, T2, rel
-!        GOTO 1
-!     ENDIF
+         GOTO 1
+      ENDIF
 
 !     JO84: (seems wrong)      
 !     BY11 = BY11
@@ -2330,7 +2363,7 @@
 !  all INDX2es that start IS,IQ-IS after which we test the final argument
 !  which can be IP-N+1, IP-N or IP-N-1. The range of N is chosen to keep IP-N+1
 !  non-negative, and the range of IS is chosen to keep the combination IS,IQ-IS
-!  legal. Thus the other possibilities require IF tests and jumps.
+!  legal. Thus the other possibilities require if tests and jumps.
 
           FACTOR=2D0*(XN*XS+1D0)**2/(XN+XS)
           PSUM=PSUM+FAC*FCTR1*(4D0+XN*XS-FACTOR)*P(INDX2(IS,IQ-IS,IP-N+1))/(XS*(2D0*XS-1D0))
@@ -2386,7 +2419,7 @@
 
 ! === Jeffrey & Onishi (1984) - YC =====================================
 !     Jeffrey, D. J., & Onishi, Y. (1984). Calculation of the resistance and mobility functions for two unequal rigid spheres in low-Reynolds-number flow. Journal of Fluid Mechanics, 139, 261-290.
-!     Townsend, A. K. (2018). Generating, from scratch, the near-field asymptotic forms of scalar resistance functions for two unequal rigid spheres in low-Reynolds-number flow. arXiv preprint arXiv:1802.08226.      
+!     Townsend, A. K. (2018). Generating, from scratch, the near-field asymptotic forms of scalar resistance functions for two unequal rigid spheres in low-Reynolds-number flow. arXiv preprint arXiv:1802.08226.
 !     http://ryuon.sourceforge.net/twobody/errata.html
       SUBROUTINE JO84YC(opp,s,alam,T1,T2,acu)
       IMPLICIT DOUBLE PRECISION (a-h,o-z)
@@ -2558,7 +2591,7 @@
 !  all INDX2es that start IS,IQ-IS after which we test the final argument
 !  which can be IP-N+1, IP-N or IP-N-1. The range of N is chosen to keep IP-N+1
 !  non-negative, and the range of IS is chosen to keep the combination IS,IQ-IS
-!  legal. Thus the other possibilities require IF tests and jumps.
+!  legal. Thus the other possibilities require if tests and jumps.
 
           FACTOR=2D0*(XN*XS+1D0)**2/(XN+XS)
           PSUM=PSUM+FAC*FCTR1*(4D0+XN*XS-FACTOR)*P(INDX2(IS,IQ-IS,IP-N+1))/(XS*(2D0*XS-1D0))
@@ -2671,13 +2704,13 @@
       ENDIF
 
       rel = max(dabs(T1-T1o)/dabs(T1),dabs(T2-T2o)/dabs(T2))
-      IF ( rel .GT. acu ) THEN
+!     IF ( rel .GT. acu ) THEN
          n0 = int(1.1 * float(n0)) ! 10% increase
          T1o= T1
          T2o= T2
 !        WRITE(*,*) "n_max, T1, T2 = ", n0, T1, T2, rel
-         GOTO 1
-      ENDIF
+!        GOTO 1
+!     ENDIF
 
       RETURN
       END SUBROUTINE
@@ -2765,13 +2798,12 @@
       LM=( M2*(M2+1) )/2
       LM=LM*(M2+1)+ ( LM*(M2+2) )/3
 ! LM is calculated as above to avoid overflow.
-! If MMAX=200, then LM = 681750
+! If MMAX=200, THEN LM = 681750
       LM=LM+(M-2*M2)*(M2+1)*(M2+1)
       INDX2=LM+(N-1)*(M-N+3)+IQ
       RETURN
       END
 ! ======================================================================
-      
 
 ! === Wang, Ayala, Grabowski (2005) - ISM, X-type setting: FIG3 (a) ====
 !     Wang, L. P., Ayala, O., & Grabowski, W. W. (2005). Improved formulations of the superposition method. Journal of the atmospheric sciences, 62(4), 1255-1266.
@@ -2788,24 +2820,24 @@
 !     respectively. In what follows velocities are normalized by V1x.
 
       SUBROUTINE WAG05ISMX(opp,VR,s,alam,F1,F2)
-      implicit double precision (a-h,k-z)
-      double precision, dimension(4,5) :: T
+      implicit DOUBLE PRECISION (a-h,k-z)
+      DOUBLE PRECISION, dimension(4,5) :: T
       logical opp
 
       A11 = (2d0+3d0*VR)/2d0/(1d0+VR)
       B11 = VR/4d0/(1d0+VR)
 
-      AR = 2d0/(1d0+alam)/s        ! a1/r
-!     L1 = 3d0/4d0*AR*(1d0-AR**2)  ! rigid
-!     B1 = 1d0/4d0*AR*(3d0+1d0*AR**2)
-      L1 = A11/2d0*AR-3d0*B11*AR**3
-      B1 = A11/2d0*AR+B11*AR**3
+      AR = 2d0/(1d0+alam)/s           ! a1/r
+!     L1 = 3d0/4d0*AR*(1d0-AR**2)     ! rigid
+!     B1 = 1d0/4d0*AR*(3d0+1d0*AR**2) ! rigid
+      L1 = A11/2d0*AR-3d0*B11*AR**3   ! fluid (includes rigid)
+      B1 = A11/2d0*AR+B11*AR**3       ! fluid (includes rigid)
 
-      AR = 2d0/(1d0+alam)/s*alam   ! a2/r
-!     L2 = 3d0/4d0*AR*(1d0-AR**2)  ! rigid
-!     B2 = 1d0/4d0*AR*(3d0+1d0*AR**2)
-      L2 = A11/2d0*AR-3d0*B11*AR**3
-      B2 = A11/2d0*AR+B11*AR**3
+      AR = 2d0/(1d0+alam)/s*alam      ! a2/r
+!     L2 = 3d0/4d0*AR*(1d0-AR**2)     ! rigid
+!     B2 = 1d0/4d0*AR*(3d0+1d0*AR**2) ! rigid
+      L2 = A11/2d0*AR-3d0*B11*AR**3   ! fluid (includes rigid)
+      B2 = A11/2d0*AR+B11*AR**3       ! fluid (includes rigid)
 
       T(:,:) = 0d0
       T(1,1) = 1d0
@@ -2838,7 +2870,7 @@
 
 ! === Wang, Ayala, Grabowski (2005) - ISM, Y-type setting: FIG3 (b) ====
 !     Wang, L. P., Ayala, O., & Grabowski, W. W. (2005). Improved formulations of the superposition method. Journal of the atmospheric sciences, 62(4), 1255-1266.
-!     Consider two spheres moving side by side perpendicular to their 
+!     Consider two spheres moving side by side perpENDicular to their 
 !     line of centers with the same velocity Vy. The the second sphere
 !     has the same or an opposing orientation V2y = +/- V1y to the first
 !     one. The system of equations (19) & (20) for u = (u1x, u1y, u2x, u2y)
@@ -2850,17 +2882,25 @@
 !     where L and B are the first and second factors in Eq. (1),
 !     respectively. In what follows velocities are normalized by V1y.
 
-      SUBROUTINE WAG05ISMY(opp,s,alam,F1,F2)
-      implicit double precision (a-h,k-z)
-      double precision, dimension(4,5) :: T
+      SUBROUTINE WAG05ISMY(opp,VR,s,alam,F1,F2)
+      implicit DOUBLE PRECISION (a-h,k-z)
+      DOUBLE PRECISION, dimension(4,5) :: T
       logical opp
 
-      AR = 2d0/(1d0+alam)/s        ! a1/r
-      L1 = 3d0/4d0*AR*(1d0-AR**2)
-      B1 = 1d0/4d0*AR*(3d0+1d0*AR**2)
-      AR = 2d0/(1d0+alam)/s*alam   ! a2/r
-      L2 = 3d0/4d0*AR*(1d0-AR**2)
-      B2 = 1d0/4d0*AR*(3d0+1d0*AR**2)
+      A11 = (2d0+3d0*VR)/2d0/(1d0+VR)
+      B11 = VR/4d0/(1d0+VR)
+
+      AR = 2d0/(1d0+alam)/s           ! a1/r
+!     L1 = 3d0/4d0*AR*(1d0-AR**2)     ! rigid
+!     B1 = 1d0/4d0*AR*(3d0+1d0*AR**2) ! rigid
+      L1 = A11/2d0*AR-3d0*B11*AR**3   ! fluid (includes rigid)
+      B1 = A11/2d0*AR+B11*AR**3       ! fluid (includes rigid)
+
+      AR = 2d0/(1d0+alam)/s*alam      ! a2/r
+!     L2 = 3d0/4d0*AR*(1d0-AR**2)     ! rigid
+!     B2 = 1d0/4d0*AR*(3d0+1d0*AR**2) ! rigid
+      L2 = A11/2d0*AR-3d0*B11*AR**3   ! fluid (includes rigid)
+      B2 = A11/2d0*AR+B11*AR**3       ! fluid (includes rigid)
 
       T(:,:) = 0d0
       T(1,1) = 1d0
@@ -2891,11 +2931,10 @@
       END SUBROUTINE
 ! ======================================================================
 
-
 ! === Rotational Superposition =========================================
 
       SUBROUTINE ROT(opp,s,alam,F1,F2)
-      implicit double precision (a-h,k-z)
+      implicit DOUBLE PRECISION (a-h,k-z)
       logical opp
 
       AR = 2d0/(1d0+alam)/s        ! a1/r
@@ -2915,15 +2954,14 @@
       END SUBROUTINE
 ! ======================================================================
 
-
 ! === Goddard, Mills-Williams, Sun (2020) - Normal Interaction =========
 !     Goddard, B. D., Mills-Williams, R. D., & Sun, J. (2020). The singular hydrodynamic interactions between two spheres in Stokes flow. Physics of Fluids, 32(6), 062001.
 !     This is the corrected form of the solution provided by Maude (1961): typos found and mentioned earlier
       SUBROUTINE GMS20a(eta1,eta2,F1,F2)
-      implicit double precision (a-h,k-z)
+      implicit DOUBLE PRECISION (a-h,k-z)
       sum1o = 0d0
       sum2o = 0d0
-      do i  = 1, 10000
+      DO i  = 1, 10000
          n  = dble(i)
          sum1 = sum1o + ( an(n,eta1,eta2) + bn(n,eta1,eta2)   &
                       +   cn(n,eta1,eta2) + dn(n,eta1,eta2)   &
@@ -2934,13 +2972,13 @@
                         )                 / Deltan(n,eta1,eta2)
 
          criterion = max(dabs((sum1-sum1o)/sum1), dabs((sum2-sum2o)/sum2))
-         if ( criterion .lt. 1d-10 ) then
+         IF ( criterion .lt. 1d-10 ) THEN
 !           write(*,*) "n_max, sum1, sum2 = ", i,sum1,sum2
-            goto 3
-         endif
+            GOTO 3
+         ENDIF
          sum1o = sum1
          sum2o = sum2
-      enddo
+      ENDDO
 
 3     F1 = -1d0/3d0 * dsinh(eta1) * sum1 ! (38)
       F2 = -1d0/3d0 * dsinh(eta2) * sum2 ! (39)
@@ -2951,13 +2989,13 @@
 ! === Goddard, Mills-Williams, Sun (2020) - Tangential Interaction =====
 !     Goddard, B. D., Mills-Williams, R. D., & Sun, J. (2020). The singular hydrodynamic interactions between two spheres in Stokes flow. Physics of Fluids, 32(6), 062001.
       SUBROUTINE GMS20b(al,F1)
-      implicit double precision (a-h,k-z)
-      double precision, allocatable, dimension (:)   :: At
-      double precision, allocatable, dimension (:,:) :: T
+      implicit DOUBLE PRECISION (a-h,k-z)
+      DOUBLE PRECISION, allocatable, dimension (:)   :: At
+      DOUBLE PRECISION, allocatable, dimension (:,:) :: T
 
       F1o= 0d0
       iN = 10
-1     allocate ( T(iN,4), At(-1:iN+1) )
+1     ALLOCATE ( T(iN,4), At(-1:iN+1) )
       At = 0d0
       DO i = 1, iN
          n = dble(i)
@@ -2989,75 +3027,75 @@
 
       F1 = dsqrt(2d0)/6d0 * dsinh(al) * sumF ! (3.57)
       criterion = dabs(F1-F1o)/dabs(F1)
-      if ( criterion .gt. 1d-10 ) then
+      IF ( criterion .gt. 1d-10 ) THEN
          iN = int(1.1 * float(iN)) ! 10% increase
          F1o= F1
 !        write(*,*) "n_max, F1 = ", iN,F1
-         deallocate ( T, At )
-         goto 1
-      else
-         deallocate ( T, At )
+         DEALLOCATE ( T, At )
+         GOTO 1
+      ELSE
+         DEALLOCATE ( T, At )
 !        write(*,*) "n_max, F1 = ", iN,F1
-      endif
+      ENDIF
 
       RETURN
       END SUBROUTINE
 
 ! === F U N C T I O N S :  G M S (2020) ================================
 
-      double precision function an(n,eta1,eta2)
-      double precision :: n,eta1,eta2
+      DOUBLE PRECISION FUNCTION an(n,eta1,eta2)
+      DOUBLE PRECISION :: n,eta1,eta2
       an = (2d0*n+1d0)*(n-1d0/2d0)*(dcosh(2*eta1)-dcosh(2*eta2))
       an = an - 2d0*(2d0*n-1d0)*dsinh((n+1d0/2d0)*(eta1-eta2))*dsinh((n+1d0/2d0)*(eta1+eta2))
       an = an + 2d0*(2d0*n+1d0)*dsinh((n+3d0/2d0)*(eta1-eta2))*dsinh((n-1d0/2d0)*(eta1+eta2))
       an = an * (2d0*n+3d0)
-      return
-      end
+      RETURN
+      END
 
-      double precision function bn(n,eta1,eta2)
-      double precision :: n,eta1,eta2
+      DOUBLE PRECISION FUNCTION bn(n,eta1,eta2)
+      DOUBLE PRECISION :: n,eta1,eta2
       bn = (2d0*n+1d0)*(n-1d0/2d0)*(dsinh(2*eta2)-dsinh(2*eta1))
       bn = bn - 2d0*(2d0*n-1d0)*dsinh((n+1d0/2d0)*(eta1-eta2))*dcosh((n+1d0/2d0)*(eta1+eta2))
       bn = bn + 2d0*(2d0*n+1d0)*dsinh((n+3d0/2d0)*(eta1-eta2))*dcosh((n-1d0/2d0)*(eta1+eta2))
       bn = bn + 4d0*dexp((eta2-eta1)*(n+1d0/2d0))*dsinh((n+1d0/2d0)*(eta1-eta2))
       bn = bn + (2d0*n+1d0)**2*dexp(eta1-eta2)*dsinh(eta1-eta2)
       bn = bn *-(2d0*n+3d0)
-      return
-      end
+      RETURN
+      END
 
-      double precision function cn(n,eta1,eta2)
-      double precision :: n,eta1,eta2
+      DOUBLE PRECISION FUNCTION cn(n,eta1,eta2)
+      DOUBLE PRECISION :: n,eta1,eta2
       cn = (2d0*n+1d0)*(n+3d0/2d0)*(dcosh(2*eta1)-dcosh(2*eta2))
       cn = cn + 2d0*(2d0*n+3d0)*dsinh((n+1d0/2d0)*(eta1-eta2))*dsinh((n+1d0/2d0)*(eta1+eta2))
       cn = cn + 2d0*(2d0*n+1d0)*dsinh((n+3d0/2d0)*(eta1+eta2))*dsinh((n-1d0/2d0)*(eta2-eta1))
       cn = cn *-(2d0*n-1d0)
-      return
-      end
+      RETURN
+      END
 
-      double precision function dn(n,eta1,eta2)
-      double precision :: n,eta1,eta2
+      DOUBLE PRECISION FUNCTION dn(n,eta1,eta2)
+      DOUBLE PRECISION :: n,eta1,eta2
       dn = (2d0*n+1d0)*(n+3d0/2d0)*(dsinh(2*eta1)-dsinh(2*eta2))
       dn = dn + 2d0*(2d0*n+3d0)*dsinh((n+1d0/2d0)*(eta1-eta2))*dcosh((n+1d0/2d0)*(eta1+eta2))
       dn = dn + 2d0*(2d0*n+1d0)*dsinh((n-1d0/2d0)*(eta2-eta1))*dcosh((n+3d0/2d0)*(eta1+eta2))
       dn = dn + 4d0*dexp((eta2-eta1)*(n+1d0/2d0))*dsinh((n+1d0/2d0)*(eta1-eta2))
       dn = dn - (2d0*n+1d0)**2*dexp(eta2-eta1)*dsinh(eta1-eta2)
       dn = dn * (2d0*n-1d0)
-      return
-      end
+      RETURN
+      END
 
-      double precision function Deltan(n,eta1,eta2)
-      double precision :: n,eta1,eta2
+      DOUBLE PRECISION FUNCTION Deltan(n,eta1,eta2)
+      DOUBLE PRECISION :: n,eta1,eta2
       Deltan = 4d0*dsinh((n+1d0/2d0)*(eta1-eta2))**2
       Deltan = Deltan - ( (2d0*n+1d0) * dsinh(eta1-eta2) )**2
       Deltan = Deltan * (2d0*n-1d0)*(2d0*n+3d0) / ( n * (n+1d0) )
-      return
-      end
+      RETURN
+      END
 
-      double precision function gma(n,al)
-      double precision :: n,al
+      DOUBLE PRECISION FUNCTION gma(n,al)
+      DOUBLE PRECISION :: n,al
       gma = ( dtanh(al)*dtanh((n+5d-1)*al) )**(-1)
-      return
-      end
+      RETURN
+      END
 ! ======================================================================
 
 ! === G A U S S   E L I M I N A T I O N ================================
@@ -3071,28 +3109,28 @@
 !     simutaneously for matrix A and several RHS vectors b). The 
 !     parameter (NMAX=100, MMAX=200) is just an example to make it
 !     suitable for solving with <=100 unknowns with <= 200-100 RHS 
-!     vectors. In your specific case (4 eqns with one RHS vector),
+!     vectors. In your specIFic case (4 eqns with one RHS vector),
 !     NMAX=4, MMAX=5 would suffice, but you do not have to make that
 !     change, just make sure, one way or the other, that dimensions of
 !     T are consistent in GAUSS and the calling routine.
 
 !     To use GAUSS for AX=b, put A into the (N,N) part of matrix T,
 !     (i.e. T_{iJ}=A_{ij} for i,j <=N) and set 
-!     T(1,N+1)=b_1, T(2,N+1)=b_2, ... T(N,N+1)=b_N (if you have one
+!     T(1,N+1)=b_1, T(2,N+1)=b_2, ... T(N,N+1)=b_N (IF you have one
 !     RHS vector b). After call GAUSS(N,N+1,T) you will get the 
 !     solution X_i= T(i,N+1) for i<=N. In your case, N=4.
 
 !     If you want the solutions for several different b-vectors with 
-!     the same matrix A, then these vectors must be placed into the
+!     the same matrix A, Then these vectors must be placed into the
 !     columns (N+1), (N+2), ... M of matrix T before calling GAUSS,
 !     and the solutions will then be found in those columns after GAUSS.
-!     Of course, all calcs must be in double precision.
+!     Of course, all calcs must be in DOUBLE PRECISION.
 
       SUBROUTINE GAUSS(N,M,T)
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
 !     PARAMETER (NMAX=100, MMAX=200)
 !     DIMENSION T(NMAX,MMAX)
-      DIMENSION T(N,M) ! My modification
+      DIMENSION T(N,M) ! My modIFication
       INTEGER S
       
       DO 1 I=1,N
@@ -3174,7 +3212,7 @@
       WRITE(*,*) "Residual =", R
 
       IF (R.GT.1D+21) STOP "The system of equations is not diagonally &
-                             dominant or it is not positive definite!"
+                            dominant or it is not positive definite!"
       IF (R.GT.1D-6) GOTO 1
 
       RETURN
@@ -3225,43 +3263,6 @@
 !     CALL CPU_TIME(finish)
 !     WRITE(*,*) 'Elapsed time', finish-start ,'s'
 
-      RETURN
-      END SUBROUTINE
-! ======================================================================
-
-! === G A U S S   E L I M I N A T I O N ================================
-      SUBROUTINE GAUSSP(N,M,T,ID)
-      USE OMP_LIB
-      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-!     PARAMETER (NMAX=100, MMAX=200)
-!     DIMENSION T(NMAX,MMAX)
-      DIMENSION T(N,M) ! My modification
-      INTEGER S,ID
-
-      DO 1 I=1,N
-         S=I
-         R=T(I,I)
-         DO 2 K=I+1,N
-            IF(DABS(T(K,I)).GT.DABS(R)) THEN
-              S=K
-              R=T(K,I)
-            ENDIF
-2        CONTINUE
-         T(S,I)=T(I,I)
-         DO 3 J=I+1,M
-            U=T(S,J)/R
-            T(S,J)=T(I,J)
-            T(I,J)=U
-            DO 4 K=I+1,N
-4              T(K,J)=T(K,J)-T(K,I)*U
-3        CONTINUE
-1     CONTINUE
-      DO 5 I=N-1,1,-1
-         DO 5 J=N+1,M
-            DO 5 K=I+1,N
-               R=T(I,K)
-               T(I,J)=T(I,J)-R*T(K,J)
-5     CONTINUE
       RETURN
       END SUBROUTINE
 ! ======================================================================
