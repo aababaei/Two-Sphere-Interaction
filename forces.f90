@@ -6,6 +6,7 @@
       PARAMETER ( acu = 1d-9 )
       LOGICAL opp, ncl
 
+      OPEN (1, file='output.dat')
 ! ============ I N P U T S ==============
 
         alam = 1d-0    ! Radii ratio
@@ -74,7 +75,6 @@
 !     CALL GMS20b(al,F1) ! wrong
 
 ! ============ O U T P U T ==============
-      OPEN (1, file='output.dat')
       WRITE(1,*) s-2d0, F1, F2, T1, T2
       WRITE(*,*) s-2d0, F1, F2, T1, T2
 ! ======================================= 
