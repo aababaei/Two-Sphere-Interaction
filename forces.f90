@@ -7,62 +7,63 @@
       PROGRAM HYDROFORCES
 !     -mcmodel=medium -fopenmp export OMP_NUM_THREADS=<n>
       IMPLICIT DOUBLE PRECISION (A-H,K-Z)
-      DOUBLE PRECISION fg(4,4)
+      DIMENSION fg(4,4)
       PARAMETER ( acu = 1d-9 )
       LOGICAL opp, ncl
 
+      CALL CPU_TIME(t0)
       OPEN (1, file='output.dat')
 
 ! ============ I N P U T S ==============
 
-        alam = 1d-0    ! Radii ratio
+        alam = 5.00d-2 ! Radius ratio
          mur = 1d+6    ! Viscosity ratio
-         ncl = .TRUE.  ! Non-continuum lubrication ON
-!        ncl = .FALSE. ! Non-continuum lubrication OFF
-!        opp = .TRUE.  ! Orientation: opposing
-         opp = .FALSE. ! Orientation: same
+!        ncl = .TRUE.  ! Non-continuum lubrication ON
+         ncl = .FALSE. ! Non-continuum lubrication OFF
+         opp = .TRUE.  ! Orientation: opposing
+!        opp = .FALSE. ! Orientation: same
 
 ! ========= L O G   D I S T R. ========== 
 ! Logarithmic distribution of normalized
-! gap size, xi = s — 2, in JO84 notation:
-      xi_min = 1d-3
+! gap size ξ = s — 2 in JO84 notation:
+      xi_min = 1d-6
       xi_max = 1d+2
-      sample = 19d0
+      sample = 9d0
       dlt_xi = DLOG ( xi_max / xi_min ) / sample
+      dlt_la = ( 1d0 - 5d-2  ) / sample
            s = 2d0 + xi_min + 3d-16
 ! ======================================= 
-      CALL CPU_TIME(t0)
       DO i = 1, INT(sample)+1
-      CALL MAP(s,alam,al,be) ! (s, lambda) —> (alpha, beta)
+      CALL MAP(s,alam,al,be) ! (s,λ) —> (α,β)
 
 ! ============ M E T H O D ==============
 
-!     CALL J1915(opp,al,be,T1,T2,acu)
+!     CALL J1915(opp,al,be,T1,T2,acu) ! limit exists
 
 !     CALL SJ26M61EXP(opp,al,be,F1,F2,acu)
 !     CALL SJ1926IMP(opp,al,be,F1,F2,acu)
 
-!     CALL H1937vdW(s,alam,1d1,5d-13,F1,F2)
+!     CALL H1937vdW(s,alam,1d1,5d-13,F1,F2) ! wrong: needs velocity
 
-!     CALL GCB66T(al,F1,T1,acu)
-!     CALL GCB66R(al,F1,T1,acu)
+!     CALL GCB66T(al,F1,T1,acu) ! limit exists
+!     CALL GCB66R(al,F1,T1,acu) ! limit exists for force only
 
-!     CALL ON69T(al,F1,T1,acu)
-!     CALL ON69R(al,F1,T1,acu)
+!     CALL ON69T(al,F1,T1,acu) ! no limit
+!     CALL ON69R(al,F1,T1,acu) ! no limit
 
-      CALL TORQUEFREES(opp,al,F1,acu)
+!     CALL FREEROTEQUAL(opp,al,F1,acu)
 
 !     CALL ONM70R(opp,al,be,fg,F1,F2,T1,T2,acu)
 !     CALL ONM70T(opp,al,be,fg,F1,F2,T1,T2,acu)
 
-!     CALL TORQUEFREE(opp,al,be,F1,F2,acu)
+!     CALL FREEROTATION(opp,al,be,F1,F2,acu)
 
 !     CALL WW72(mur,al,F1,acu)
 
 !     CALL HHS73EXP(opp,mur,mur,al,be,F1,F2,acu)
 !     CALL HHS73IMP(opp,mur,mur,al,be,F1,F2,acu) ! A bit more accurate
 
-!     CALL RM74(opp,1d-2,al,be,F1,F2,acu)
+      CALL RM74(opp,1d+6,al,be,F1,F2,acu)
 
 !     CALL BRI78(mur,al,F1)
 
@@ -74,25 +75,26 @@
 
 !     CALL WAG05ISMX(opp,mur,s,alam,F1,F2)
 !     CALL WAG05ISMY(opp,mur,s,alam,F1,F2)
-!     CALL ROT(opp,s,alam,F1,F2) ! not DOne
+!     CALL ROT(opp,s,alam,F1,F2) ! not done
 
 !     CALL GMS20a(al,be,F1,F2)
 !     CALL GMS20b(al,F1) ! wrong ?
 
 ! ============ O U T P U T ==============
       WRITE(1,*) s-2d0, F1, F2, T1, T2
-!     WRITE(1,*) s-2d0, F1
       WRITE(*,*) s-2d0, F1, F2, T1, T2
+!     WRITE(1,*) alam, F1, F2
+!     WRITE(*,*) alam, F1, F2, T1, T2
 ! ======================================= 
 
 !     STOP
 
 ! ========= L O G   D I S T R. ==========
-! Logarithmic distribution of normalized
-! gap size, xi = s — 2, in JO84 notation:
       s = DLOG ( s - 2d0 ) + dlt_xi
       s = DEXP ( s ) + 2d0
+!     alam = alam + dlt_la
       ENDDO
+! ======================================= 
 
       CALL CPU_TIME(t1)
       WRITE(*,*) 'Elapsed time:', t1-t0 ,'s'
@@ -104,71 +106,71 @@
 
 ! ============ M A P P I N G ============
       SUBROUTINE MAP(s,alam,al,be)
-      implicit DOUBLE PRECISION (a-z)
+      IMPLICIT DOUBLE PRECISION (A-Z)
 !     Zinchenko explicit transform
-! Here we map the regular JO84 (s, lambda)
-! geometrical setting in two sets of
-! spherical polar coordinates (JO84 Sec. 2)
-! system to spherical bipolar, known as
-! bispherical, coordinates (epsilon, k), 
-! to obtain two spheres interfaces, e.g.
-! (alpha, beta) in Stimson & Jeffery (1926)
-! notation or (xi1, xi2) in Jeffery (1915)
-! notation, using formulae given by Zinchenko
-! for example in Eq. (2.2) of his paper:
-! DOi.org/10.1016/0021-8928(78)90051-5.
-! The methodology to derive these, however,
-! is not straightforward, and he kindly
-! sent it to us in a personal communication.
+!     Here we map the regular JO84 (s,λ)
+!     geometrical setting in two sets of
+!     spherical polar coordinates (JO84 Sec. 2)
+!     system to spherical bipolar, known as
+!     bispherical, coordinates (ε,k), 
+!     to obtain two spheres interfaces, e.g.
+!     (α,β) in Stimson & Jeffery (1926)
+!     notation or (ξ1, ξ2) in Jeffery (1915)
+!     notation, using formulae given by Zinchenko
+!     for example in Eq. (2.2) of his paper:
+!     doi.org/10.1016/0021-8928(78)90051-5.
+!     The methodology to derive these, however,
+!     is not straightforward, and he kindly
+!     sent it to us in a personal communication.
 
-! Radii ratio:
-! "k" in Zinchenko (1977) notation
-! "lambda=1/k" in JO84 notation
+!     Radii ratio:
+!     "k" in Zinchenko (1977) notation
+!     "λ = 1/k" in JO84 notation
 
-! Mapping formulae: 
-! (s, lambda) —> (epsilon, k) —> (alpha, beta)
-! They are modified according to our problem setting.
+!     Mapping formulae: 
+!     (s,λ) —> (ε,k) —> (α,β)
+!     They are modified according to our problem setting.
            k = 1d0 / alam                         ! size ratio
-         eps = ( s - 2d0 ) * ( alam + 1d0 ) / 2d0 ! normalized clearance: eps.a1 = gap
+         eps = ( s - 2d0 ) * ( alam + 1d0 ) / 2d0 ! normalized clearance: ε.a1 = gap
       coshal = 1d0 + eps   * ( alam + eps / 2d0 ) / ( 1d0 + alam + eps )
       coshbe = 1d0 + eps/alam*( 1d0 + eps / 2d0 ) / ( 1d0 + alam + eps )
 !     coshal = 1d0 + eps  *   ( 1d0 + k * eps / 2d0 ) / ( 1d0 + k * ( 1d0 + eps ) )
 !     coshbe = 1d0 + eps * k**2 * ( 1d0 + eps / 2d0 ) / ( 1d0 + k * ( 1d0 + eps ) )
       al = acosh(coshal)
       be =-acosh(coshbe)
-!     be = asinh(-k*dsinh(al))
-!     WRITE(*,*) "eps, k, alpha, beta =",eps,k,al,be
+!     be = asinh(-k*DSINH(al))
+!     WRITE(*,*) "ε, k, α, β =",eps,k,al,be
       RETURN
-      END
+      END SUBROUTINE
 
 ! === Jeffery (1915) ===================================================
-!     Jeffery, G. B. (1915). On the steady rotation of a solid of revolution in a viscous fluid. Proceedings of the LonDOn Mathematical Society, 2(1), 327-338.
+!     Jeffery, G. B. (1915). On the steady rotation of a solid of revolution in a viscous fluid. Proceedings of the London Mathematical Society, 2(1), 327-338.
       SUBROUTINE J1915(opp,xi1,xi2,G1,G2,acu)
-      implicit DOUBLE PRECISION (a-h,k-z)
-      logical opp
+      IMPLICIT DOUBLE PRECISION (A-H,K-Z)
+      LOGICAL opp
 
       sum1o = 0d0
       sum2o = 0d0
         rel = 1d3
           i = 0
       DO WHILE ( rel .GT. acu )
-          m = dble(i)
+          m = DBLE(i)
          IF (opp) THEN
-          sum1 = sum1o + dsinh((m+1d0)*xi1-m*xi2)**(-3) + dsinh((m+1d0)*(xi1-xi2))**(-3)
-          sum2 = sum2o + dsinh((m+1d0)*xi2-m*xi1)**(-3) + dsinh((m+1d0)*(xi2-xi1))**(-3)
+          sum1 = sum1o + DSINH((m+1d0)*xi1-m*xi2)**(-3) + DSINH((m+1d0)*(xi1-xi2))**(-3)
+          sum2 = sum2o + DSINH((m+1d0)*xi2-m*xi1)**(-3) + DSINH((m+1d0)*(xi2-xi1))**(-3)
          ELSE
-          sum1 = sum1o + dsinh((m+1d0)*xi1-m*xi2)**(-3) - dsinh((m+1d0)*(xi1-xi2))**(-3)
-          sum2 = sum2o + dsinh((m+1d0)*xi2-m*xi1)**(-3) - dsinh((m+1d0)*(xi2-xi1))**(-3)
+          sum1 = sum1o + DSINH((m+1d0)*xi1-m*xi2)**(-3) - DSINH((m+1d0)*(xi1-xi2))**(-3)
+          sum2 = sum2o + DSINH((m+1d0)*xi2-m*xi1)**(-3) - DSINH((m+1d0)*(xi2-xi1))**(-3)
          ENDIF
-           rel = max(dabs(sum1-sum1o)/dabs(sum1),dabs(sum2-sum2o)/dabs(sum2))
+           rel = MAX(DABS(sum1-sum1o)/DABS(sum1),DABS(sum2-sum2o)/DABS(sum2))
          sum1o = sum1
          sum2o = sum2
              i = i + 1
       ENDDO
 
 !     Equation (12):
-      G1 = dsinh(xi1)**3 * sum1 ! normalized by -8.pi.mu.a1**3.omega1
-      G2 = dsinh(xi2)**3 * sum2 ! normalized by -8.pi.mu.a2**3.omega2
+      G1 = DSINH(xi1)**3 * sum1 ! normalized by —8πμa₁³Ω₁
+      G2 = DSINH(xi2)**3 * sum2 ! normalized by —8πμa₂³Ω₂
 
       RETURN
       END SUBROUTINE
@@ -178,8 +180,8 @@
 !     Stimson, M., & Jeffery, G. B. (1926). The motion of two spheres in a viscous fluid. Proceedings of the Royal Society of London. Series A, Containing Papers of a Mathematical and Physical Character, 111(757), 110-116.
 !     Maude, A. D. (1961). End effects in a falling-sphere viscometer. British Journal of Applied Physics, 12(6), 293.
       SUBROUTINE SJ26M61EXP(opp,al,be,F1,F2,acu)
-      implicit DOUBLE PRECISION (a-h,k-z)
-      logical opp
+      IMPLICIT DOUBLE PRECISION (A-H,K-Z)
+      LOGICAL opp
 
       sum1o = 0d0
       sum2o = 0d0
@@ -191,7 +193,7 @@
         rel = 1d3
           i = 1
       DO WHILE ( rel .GT. acu )
-          n = dble(i)
+          n = DBLE(i)
           k = n*(n+1d0)/(2d0*n-1d0)/(2d0*n+3d0)
 
          IF (opp) THEN  ! Maude (1961)
@@ -222,7 +224,7 @@
 !        sum7 = sum7o + C(n,k,al,be)/Delta(n,al,be)
          ENDIF
 
-           rel = max(dabs(sum1-sum1o)/dabs(sum1),dabs(sum2-sum2o)/dabs(sum2),dabs(sum3-sum3o)/dabs(sum3))
+           rel = MAX(DABS(sum1-sum1o)/DABS(sum1),DABS(sum2-sum2o)/DABS(sum2),DABS(sum3-sum3o)/DABS(sum3))
          sum1o = sum1
          sum2o = sum2
          sum3o = sum3
@@ -233,9 +235,9 @@
              i = i + 1
       ENDDO
 
-      F1 = 1d0/3d0 * dsinh(al) * dabs(sum1) ! (34)
-      F2 =-1d0/3d0 * dsinh(be) * dabs(sum2) ! (35)
-      Fe = 4d0/3d0 * dsinh(al) * dabs(sum3) ! (37)
+      F1 = 1d0/3d0 * DSINH(al) * DABS(sum1) ! (34)
+      F2 =-1d0/3d0 * DSINH(be) * DABS(sum2) ! (35)
+      Fe = 4d0/3d0 * DSINH(al) * DABS(sum3) ! (37)
 
       RETURN
       END SUBROUTINE
@@ -244,47 +246,47 @@
 
       DOUBLE PRECISION FUNCTION A1(n,k,al,be)
       DOUBLE PRECISION :: n,k,al,be
-      A1 = 4d0*dexp(-(n+1d0/2d0)*(al-be))*dsinh((n+1d0/2d0)*(al-be))
-      A1 = A1 + (2d0*n+1d0)**2*dexp(al-be)*dsinh(al-be)
-      A1 = A1 + 2d0*(2d0*n-1d0)*dsinh((n+1d0/2d0)*(al-be))*dcosh((n+1d0/2d0)*(al+be))
-      A1 = A1 - 2d0*(2d0*n+1d0)*dsinh((n+3d0/2d0)*(al-be))*dcosh((n-1d0/2d0)*(al+be))
-      A1 = A1 - (2d0*n+1d0)*(2d0*n-1d0)*dsinh(al-be)*dcosh(al+be)
+      A1 = 4d0*DEXP(-(n+1d0/2d0)*(al-be))*DSINH((n+1d0/2d0)*(al-be))
+      A1 = A1 + (2d0*n+1d0)**2*DEXP(al-be)*DSINH(al-be)
+      A1 = A1 + 2d0*(2d0*n-1d0)*DSINH((n+1d0/2d0)*(al-be))*DCOSH((n+1d0/2d0)*(al+be))
+      A1 = A1 - 2d0*(2d0*n+1d0)*DSINH((n+3d0/2d0)*(al-be))*DCOSH((n-1d0/2d0)*(al+be))
+      A1 = A1 - (2d0*n+1d0)*(2d0*n-1d0)*DSINH(al-be)*DCOSH(al+be)
       A1 = A1 * (2d0*n+3d0) * k
       RETURN
       END
 
       DOUBLE PRECISION FUNCTION B1(n,k,al,be)
       DOUBLE PRECISION :: n,k,al,be
-      B1 = 2d0*(2d0*n-1d0)*dsinh((n+1d0/2d0)*(al-be))*dsinh((n+1d0/2d0)*(al+be))
-      B1 = B1 - 2d0*(2d0*n+1d0)*dsinh((n+3d0/2d0)*(al-be))*dsinh((n-1d0/2d0)*(al+be))
-      B1 = B1 + (2d0*n+1d0)*(2d0*n-1d0)*dsinh(al-be)*dsinh(al+be)
+      B1 = 2d0*(2d0*n-1d0)*DSINH((n+1d0/2d0)*(al-be))*DSINH((n+1d0/2d0)*(al+be))
+      B1 = B1 - 2d0*(2d0*n+1d0)*DSINH((n+3d0/2d0)*(al-be))*DSINH((n-1d0/2d0)*(al+be))
+      B1 = B1 + (2d0*n+1d0)*(2d0*n-1d0)*DSINH(al-be)*DSINH(al+be)
       B1 = B1 *-(2d0*n+3d0) * k
       RETURN
       END
 
       DOUBLE PRECISION FUNCTION C1(n,k,al,be)
       DOUBLE PRECISION :: n,k,al,be
-      C1 = 4d0*dexp(-(n+1d0/2d0)*(al-be))*dsinh((n+1d0/2d0)*(al-be))
-      C1 = C1 - (2d0*n+1d0)**2*dexp(be-al)*dsinh(al-be)
-      C1 = C1 + 2d0*(2d0*n+1d0)*dsinh((n-1d0/2d0)*(al-be))*dcosh((n+3d0/2d0)*(al+be))
-      C1 = C1 - 2d0*(2d0*n+3d0)*dsinh((n+1d0/2d0)*(al-be))*dcosh((n+1d0/2d0)*(al+be))
-      C1 = C1 + (2d0*n+1d0)*(2d0*n+3d0)*dsinh(al-be)*dcosh(al+be)
+      C1 = 4d0*DEXP(-(n+1d0/2d0)*(al-be))*DSINH((n+1d0/2d0)*(al-be))
+      C1 = C1 - (2d0*n+1d0)**2*DEXP(be-al)*DSINH(al-be)
+      C1 = C1 + 2d0*(2d0*n+1d0)*DSINH((n-1d0/2d0)*(al-be))*DCOSH((n+3d0/2d0)*(al+be))
+      C1 = C1 - 2d0*(2d0*n+3d0)*DSINH((n+1d0/2d0)*(al-be))*DCOSH((n+1d0/2d0)*(al+be))
+      C1 = C1 + (2d0*n+1d0)*(2d0*n+3d0)*DSINH(al-be)*DCOSH(al+be)
       C1 = C1 *-(2d0*n-1d0) * k
       RETURN
       END
 
       DOUBLE PRECISION FUNCTION D1(n,k,al,be)
       DOUBLE PRECISION :: n,k,al,be
-      D1 = 2d0*(2d0*n+1d0)*dsinh((n-1d0/2d0)*(al-be))*dsinh((n+3d0/2d0)*(al+be))
-      D1 = D1 - 2d0*(2d0*n+3d0)*dsinh((n+1d0/2d0)*(al-be))*dsinh((n+1d0/2d0)*(al+be))
-      D1 = D1 + (2d0*n+1d0)*(2d0*n+3d0)*dsinh(al-be)*dsinh(al+be)
+      D1 = 2d0*(2d0*n+1d0)*DSINH((n-1d0/2d0)*(al-be))*DSINH((n+3d0/2d0)*(al+be))
+      D1 = D1 - 2d0*(2d0*n+3d0)*DSINH((n+1d0/2d0)*(al-be))*DSINH((n+1d0/2d0)*(al+be))
+      D1 = D1 + (2d0*n+1d0)*(2d0*n+3d0)*DSINH(al-be)*DSINH(al+be)
       D1 = D1 * (2d0*n-1d0) * k
       RETURN
       END
 
       DOUBLE PRECISION FUNCTION Delta(n,al,be)
       DOUBLE PRECISION :: n,al,be
-      Delta = 4d0*dsinh((n+1d0/2d0)*(al-be))**2-((2d0*n+1d0)*dsinh(al-be))**2
+      Delta = 4d0*DSINH((n+1d0/2d0)*(al-be))**2-((2d0*n+1d0)*DSINH(al-be))**2
       RETURN
       END
 
@@ -292,45 +294,45 @@
 
       DOUBLE PRECISION FUNCTION A2(n,k,al,be)
       DOUBLE PRECISION :: n,k,al,be
-      A2 = 2d0*(2d0*n-1d0)*dsinh((n+1d0/2d0)*(al-be))*dsinh((n+1d0/2d0)*(al+be))
-      A2 = A2 - 2d0*(2d0*n+1d0)*dsinh((n+3d0/2d0)*(al-be))*dsinh((n-1d0/2d0)*(al+be))
-      A2 = A2 - (2d0*n+1d0)*(2d0*n-1d0)*dsinh(al-be)*dsinh(al+be)
+      A2 = 2d0*(2d0*n-1d0)*DSINH((n+1d0/2d0)*(al-be))*DSINH((n+1d0/2d0)*(al+be))
+      A2 = A2 - 2d0*(2d0*n+1d0)*DSINH((n+3d0/2d0)*(al-be))*DSINH((n-1d0/2d0)*(al+be))
+      A2 = A2 - (2d0*n+1d0)*(2d0*n-1d0)*DSINH(al-be)*DSINH(al+be)
       A2 = A2 * (2d0*n+3d0) * k
       RETURN
       END
 
       DOUBLE PRECISION FUNCTION B2(n,k,al,be)
       DOUBLE PRECISION :: n,k,al,be
-!     B2 =-4d0*dexp((n+1d0/2d0)*(al-be))*dsinh((n+1d0/2d0)*(al-be))         !   typo?!
-      B2 =-4d0*dexp(-(n+1d0/2d0)*(al-be))*dsinh((n+1d0/2d0)*(al-be))
-      B2 = B2 - (2d0*n+1d0)**2*dexp(al-be)*dsinh(al-be)
-      B2 = B2 + 2d0*(2d0*n-1d0)*dsinh((n+1d0/2d0)*(al-be))*dcosh((n+1d0/2d0)*(al+be))
-      B2 = B2 - 2d0*(2d0*n+1d0)*dsinh((n+3d0/2d0)*(al-be))*dcosh((n-1d0/2d0)*(al+be))
-!     B2 = B2 + (2d0*n+1d0)*(2d0*n-1d0)*dsinh(al-be)*dcosh(al-be)           !   typo?!
-      B2 = B2 + (2d0*n+1d0)*(2d0*n-1d0)*dsinh(al-be)*dcosh(al+be)
+!     B2 =-4d0*DEXP((n+1d0/2d0)*(al-be))*DSINH((n+1d0/2d0)*(al-be))         !   typo?!
+      B2 =-4d0*DEXP(-(n+1d0/2d0)*(al-be))*DSINH((n+1d0/2d0)*(al-be))
+      B2 = B2 - (2d0*n+1d0)**2*DEXP(al-be)*DSINH(al-be)
+      B2 = B2 + 2d0*(2d0*n-1d0)*DSINH((n+1d0/2d0)*(al-be))*DCOSH((n+1d0/2d0)*(al+be))
+      B2 = B2 - 2d0*(2d0*n+1d0)*DSINH((n+3d0/2d0)*(al-be))*DCOSH((n-1d0/2d0)*(al+be))
+!     B2 = B2 + (2d0*n+1d0)*(2d0*n-1d0)*DSINH(al-be)*DCOSH(al-be)           !   typo?!
+      B2 = B2 + (2d0*n+1d0)*(2d0*n-1d0)*DSINH(al-be)*DCOSH(al+be)
       B2 = B2 *-(2d0*n+3d0) * k
       RETURN
       END
 
       DOUBLE PRECISION FUNCTION C2(n,k,al,be)
       DOUBLE PRECISION :: n,k,al,be
-!     C2 = 2d0*(2d0*n+1d0)*dsinh((n-1d0/2d0)*(al-be))*dsinh((n+3d0/2d0)*(al-be))      !   typo?!
-      C2 = 2d0*(2d0*n+1d0)*dsinh((n-1d0/2d0)*(al-be))*dsinh((n+3d0/2d0)*(al+be))
-!     C2 = C2 - 2d0*(2d0*n+3d0)*dsinh((n+1d0/2d0)*(al-be))*dsinh((n+1d0/2d0)*(al-be)) !   typo?!
-      C2 = C2 - 2d0*(2d0*n+3d0)*dsinh((n+1d0/2d0)*(al-be))*dsinh((n+1d0/2d0)*(al+be))
-      C2 = C2 - (2d0*n+1d0)*(2d0*n+3d0)*dsinh(al-be)*dsinh(al+be)
+!     C2 = 2d0*(2d0*n+1d0)*DSINH((n-1d0/2d0)*(al-be))*DSINH((n+3d0/2d0)*(al-be))      !   typo?!
+      C2 = 2d0*(2d0*n+1d0)*DSINH((n-1d0/2d0)*(al-be))*DSINH((n+3d0/2d0)*(al+be))
+!     C2 = C2 - 2d0*(2d0*n+3d0)*DSINH((n+1d0/2d0)*(al-be))*DSINH((n+1d0/2d0)*(al-be)) !   typo?!
+      C2 = C2 - 2d0*(2d0*n+3d0)*DSINH((n+1d0/2d0)*(al-be))*DSINH((n+1d0/2d0)*(al+be))
+      C2 = C2 - (2d0*n+1d0)*(2d0*n+3d0)*DSINH(al-be)*DSINH(al+be)
       C2 = C2 *-(2d0*n-1d0) * k
       RETURN
       END
 
       DOUBLE PRECISION FUNCTION D2(n,k,al,be)
       DOUBLE PRECISION :: n,k,al,be
-!     D2 =-4d0*dexp(-(n+1d0/2d0)*(al-be))*dsinh((n+1d0/2d0)*(al+be))        !   typo?!
-      D2 =-4d0*dexp(-(n+1d0/2d0)*(al-be))*dsinh((n+1d0/2d0)*(al-be))
-      D2 = D2 + (2d0*n+1d0)**2*dexp(be-al)*dsinh(al-be)
-      D2 = D2 + 2d0*(2d0*n+1d0)*dsinh((n-1d0/2d0)*(al-be))*dcosh((n+3d0/2d0)*(al+be))
-      D2 = D2 - 2d0*(2d0*n+3d0)*dsinh((n+1d0/2d0)*(al-be))*dcosh((n+1d0/2d0)*(al+be))
-      D2 = D2 - (2d0*n+1d0)*(2d0*n+3d0)*dsinh(al-be)*dcosh(al+be)
+!     D2 =-4d0*DEXP(-(n+1d0/2d0)*(al-be))*DSINH((n+1d0/2d0)*(al+be))        !   typo?!
+      D2 =-4d0*DEXP(-(n+1d0/2d0)*(al-be))*DSINH((n+1d0/2d0)*(al-be))
+      D2 = D2 + (2d0*n+1d0)**2*DEXP(be-al)*DSINH(al-be)
+      D2 = D2 + 2d0*(2d0*n+1d0)*DSINH((n-1d0/2d0)*(al-be))*DCOSH((n+3d0/2d0)*(al+be))
+      D2 = D2 - 2d0*(2d0*n+3d0)*DSINH((n+1d0/2d0)*(al-be))*DCOSH((n+1d0/2d0)*(al+be))
+      D2 = D2 - (2d0*n+1d0)*(2d0*n+3d0)*DSINH(al-be)*DCOSH(al+be)
       D2 = D2 * (2d0*n-1d0) * k
       RETURN
       END
@@ -339,24 +341,24 @@
 
       DOUBLE PRECISION FUNCTION A_equal(n,k,al)
       DOUBLE PRECISION :: n,k,al
-      A_equal = 2d0*(1d0-dexp(-(2d0*n+1d0)*al))+(2d0*n+1d0)*(dexp(2d0*al)-1d0)
-      A_equal = A_equal / ( 2d0*dsinh((2d0*n+1d0)*al)+(2d0*n+1d0)*dsinh(2d0*al) )
+      A_equal = 2d0*(1d0-DEXP(-(2d0*n+1d0)*al))+(2d0*n+1d0)*(DEXP(2d0*al)-1d0)
+      A_equal = A_equal / ( 2d0*DSINH((2d0*n+1d0)*al)+(2d0*n+1d0)*DSINH(2d0*al) )
       A_equal = A_equal *-(2d0*n+3d0) * k
       RETURN
       END
 
       DOUBLE PRECISION FUNCTION C_equal(n,k,al)
       DOUBLE PRECISION :: n,k,al
-      C_equal = 2d0*(1d0-dexp(-(2d0*n+1d0)*al))+(2d0*n+1d0)*(1d0-dexp(-2d0*al))
-      C_equal = C_equal / ( 2d0*dsinh((2d0*n+1d0)*al)+(2d0*n+1d0)*dsinh(2d0*al) )
+      C_equal = 2d0*(1d0-DEXP(-(2d0*n+1d0)*al))+(2d0*n+1d0)*(1d0-DEXP(-2d0*al))
+      C_equal = C_equal / ( 2d0*DSINH((2d0*n+1d0)*al)+(2d0*n+1d0)*DSINH(2d0*al) )
       C_equal = C_equal * (2d0*n-1d0) * k
       RETURN
       END
 
       DOUBLE PRECISION FUNCTION lambda1(n,al)
       DOUBLE PRECISION :: n,al
-      lambda1 = 4d0*dsinh(al*(n+1d0/2d0))**2-((2d0*n+1d0)*dsinh(al))**2
-      lambda1 = lambda1 / ( 2d0*dsinh(al*(2d0*n+1d0))+(2d0*n+1d0)*dsinh(al*2d0) )
+      lambda1 = 4d0*DSINH(al*(n+1d0/2d0))**2-((2d0*n+1d0)*DSINH(al))**2
+      lambda1 = lambda1 / ( 2d0*DSINH(al*(2d0*n+1d0))+(2d0*n+1d0)*DSINH(al*2d0) )
       lambda1 = 1d0 - lambda1
       lambda1 = lambda1 * n*(n+1d0)/(2d0*n-1d0)/(2d0*n+3d0)
       RETURN
@@ -364,8 +366,8 @@
 
       DOUBLE PRECISION FUNCTION lambda2(n,al)
       DOUBLE PRECISION :: n,al
-      lambda2 = 4d0*dcosh(al*(n+1d0/2d0))**2+((2d0*n+1d0)*dsinh(al))**2
-      lambda2 = lambda2 / ( 2d0*dsinh(al*(2d0*n+1d0))-(2d0*n+1d0)*dsinh(al*2d0) )
+      lambda2 = 4d0*DCOSH(al*(n+1d0/2d0))**2+((2d0*n+1d0)*DSINH(al))**2
+      lambda2 = lambda2 / ( 2d0*DSINH(al*(2d0*n+1d0))-(2d0*n+1d0)*DSINH(al*2d0) )
       lambda2 = 1d0 - lambda2
       lambda2 = lambda2 * n*(n+1d0)/(2d0*n-1d0)/(2d0*n+3d0)
       RETURN
@@ -381,10 +383,10 @@
 !     but also an "opposing" direction, that is, Maude's solution.
       SUBROUTINE SJ1926IMP(opp,al,be,F1,F2,acu)
       USE OMP_LIB
-      implicit DOUBLE PRECISION (a-h,k-z)
-      DOUBLE PRECISION, dimension(4,5) :: T
-      integer nd
-      logical opp
+      IMPLICIT DOUBLE PRECISION (A-H,K-Z)
+      DOUBLE PRECISION, DIMENSION(4,5) :: T
+      INTEGER nd
+      LOGICAL opp
 
 !!$OMP PARALLEL PRIVATE(id)
 !     nd = OMP_GET_NUM_THREADS()
@@ -400,40 +402,40 @@
 !!$OMP PARALLEL DEFAULT(PRIVATE) FIRSTPRIVATE(i) SHARED(al,be,opp,acu) REDUCTION(+:sum1,sum2)
 !       nd = OMP_GET_NUM_THREADS()
 !       id = OMP_GET_THREAD_NUM()
-!        n = dble((i-1)*nd+id+1)
-         n = dble(i)
-!        print*,"i,n,id+1",i,n,id+1
+!        n = DBLE((i-1)*nd+id+1)
+         n = DBLE(i)
+!        PRINT*,"i,n,id+1",i,n,id+1
          k = n*(n+1d0)/(2d0*n-1d0)/(2d0*n+3d0)
-         T(1,1) = dcosh((n-1d0/2d0)*al)
-         T(1,2) = dsinh((n-1d0/2d0)*al)
-         T(1,3) = dcosh((n+3d0/2d0)*al)
-         T(1,4) = dsinh((n+3d0/2d0)*al)
-         T(1,5) =-k*( (2d0*n+3d0)*dexp(-(n-1d0/2d0)*al) - (2d0*n-1d0)*dexp(-(n+3d0/2d0)*al) )
+         T(1,1) = DCOSH((n-1d0/2d0)*al)
+         T(1,2) = DSINH((n-1d0/2d0)*al)
+         T(1,3) = DCOSH((n+3d0/2d0)*al)
+         T(1,4) = DSINH((n+3d0/2d0)*al)
+         T(1,5) =-k*( (2d0*n+3d0)*DEXP(-(n-1d0/2d0)*al) - (2d0*n-1d0)*DEXP(-(n+3d0/2d0)*al) )
 
-         T(2,1) = dcosh((n-1d0/2d0)*be)
-         T(2,2) = dsinh((n-1d0/2d0)*be)
-         T(2,3) = dcosh((n+3d0/2d0)*be)
-         T(2,4) = dsinh((n+3d0/2d0)*be)
+         T(2,1) = DCOSH((n-1d0/2d0)*be)
+         T(2,2) = DSINH((n-1d0/2d0)*be)
+         T(2,3) = DCOSH((n+3d0/2d0)*be)
+         T(2,4) = DSINH((n+3d0/2d0)*be)
          IF (opp) THEN
-         T(2,5) =+k*( (2d0*n+3d0)*dexp((n-1d0/2d0)*be) - (2d0*n-1d0)*dexp((n+3d0/2d0)*be) ) ! opposing direction
+         T(2,5) =+k*( (2d0*n+3d0)*DEXP((n-1d0/2d0)*be) - (2d0*n-1d0)*DEXP((n+3d0/2d0)*be) ) ! opposing direction
          ELSE
-         T(2,5) =-k*( (2d0*n+3d0)*dexp((n-1d0/2d0)*be) - (2d0*n-1d0)*dexp((n+3d0/2d0)*be) ) ! same direction
+         T(2,5) =-k*( (2d0*n+3d0)*DEXP((n-1d0/2d0)*be) - (2d0*n-1d0)*DEXP((n+3d0/2d0)*be) ) ! same direction
          ENDIF
 
-         T(3,1) = (2d0*n-1d0)*dsinh((n-1d0/2d0)*al)
-         T(3,2) = (2d0*n-1d0)*dcosh((n-1d0/2d0)*al)
-         T(3,3) = (2d0*n+3d0)*dsinh((n+3d0/2d0)*al)
-         T(3,4) = (2d0*n+3d0)*dcosh((n+3d0/2d0)*al)
-         T(3,5) = (2d0*n-1d0)*(2d0*n+3d0)*k*( dexp(-(n-1d0/2d0)*al) - dexp(-(n+3d0/2d0)*al) )
+         T(3,1) = (2d0*n-1d0)*DSINH((n-1d0/2d0)*al)
+         T(3,2) = (2d0*n-1d0)*DCOSH((n-1d0/2d0)*al)
+         T(3,3) = (2d0*n+3d0)*DSINH((n+3d0/2d0)*al)
+         T(3,4) = (2d0*n+3d0)*DCOSH((n+3d0/2d0)*al)
+         T(3,5) = (2d0*n-1d0)*(2d0*n+3d0)*k*( DEXP(-(n-1d0/2d0)*al) - DEXP(-(n+3d0/2d0)*al) )
 
-         T(4,1) = (2d0*n-1d0)*dsinh((n-1d0/2d0)*be)
-         T(4,2) = (2d0*n-1d0)*dcosh((n-1d0/2d0)*be)
-         T(4,3) = (2d0*n+3d0)*dsinh((n+3d0/2d0)*be)
-         T(4,4) = (2d0*n+3d0)*dcosh((n+3d0/2d0)*be)
+         T(4,1) = (2d0*n-1d0)*DSINH((n-1d0/2d0)*be)
+         T(4,2) = (2d0*n-1d0)*DCOSH((n-1d0/2d0)*be)
+         T(4,3) = (2d0*n+3d0)*DSINH((n+3d0/2d0)*be)
+         T(4,4) = (2d0*n+3d0)*DCOSH((n+3d0/2d0)*be)
          IF (opp) THEN
-         T(4,5) =+(2d0*n-1d0)*(2d0*n+3d0)*k*( dexp((n-1d0/2d0)*be) - dexp((n+3d0/2d0)*be) ) ! opposing direction
+         T(4,5) =+(2d0*n-1d0)*(2d0*n+3d0)*k*( DEXP((n-1d0/2d0)*be) - DEXP((n+3d0/2d0)*be) ) ! opposing direction
          ELSE
-         T(4,5) =-(2d0*n-1d0)*(2d0*n+3d0)*k*( dexp((n-1d0/2d0)*be) - dexp((n+3d0/2d0)*be) ) ! same direction
+         T(4,5) =-(2d0*n-1d0)*(2d0*n+3d0)*k*( DEXP((n-1d0/2d0)*be) - DEXP((n+3d0/2d0)*be) ) ! same direction
          ENDIF
 
          CALL GAUSS(4,5,T)
@@ -441,31 +443,31 @@
           sum1 = sum1o + SUM(T(1:4,5))
           sum2 = sum2o + T(1,5) - T(2,5) + T(3,5) - T(4,5)
 !!$OMP END PARALLEL
-           rel = max(dabs((sum1-sum1o)/dabs(sum1)),dabs((sum2-sum2o)/dabs(sum2)))
+           rel = MAX(DABS((sum1-sum1o)/DABS(sum1)),DABS((sum2-sum2o)/DABS(sum2)))
          sum1o = sum1
          sum2o = sum2
-!        write(*,*)"n_max,sum1,sum2,sum1o,sum2o,rel",i,sum1,sum2,sum1o,sum2o,rel
+!        WRITE(*,*)"n_max,sum1,sum2,sum1o,sum2o,rel",i,sum1,sum2,sum1o,sum2o,rel
 !        pause
              i = i + 1
       ENDDO
 
-      F1 =-dsinh(al)/3d0 *      sum1  ! (34)
-      F2 =-dsinh(be)/3d0 * dabs(sum2) ! (35)
+      F1 =-DSINH(al)/3d0 *      sum1  ! (34)
+      F2 =-DSINH(be)/3d0 * DABS(sum2) ! (35)
 
       RETURN
       END SUBROUTINE
 ! ======================================================================
 
 ! === Hamaker (1937) - van der Waals ===================================
-!     Hamaker, H. C. (1937). The LonDOn—van der Waals attraction between spherical particles. physica, 4(10), 1058-1072.
+!     Hamaker, H. C. (1937). The London—van der Waals attraction between spherical particles. physica, 4(10), 1058-1072.
       SUBROUTINE H1937vdW(s,alam,aa,A,F1,F2)
-      implicit DOUBLE PRECISION (a-h,k-z)
+      IMPLICIT DOUBLE PRECISION (A-H,K-Z)
 
 !     A  = 5d-13    ! Hamaker constant g.cm2/s2 
       a1 = aa / 1d4 ! radius in cm
       a2 = alam * a1
       mu = 1.7d-4   ! dyn visc of air
-      pi = 4d0*datan(1d0)
+      pi = 4d0*DATAN(1d0)
 
       !     Dimensional formulation: doi.org/10.1016/S0031-8914(37)80203-7
 !     r  = (a1+a2)/2d0*s
@@ -496,9 +498,9 @@
 ! in (4.40) in the paper
 
       SUBROUTINE GCB66T(al,F1,T1,acu)
-      implicit DOUBLE PRECISION (a-h,k-z)
-      DOUBLE PRECISION, allocatable, dimension (:)   :: At
-      DOUBLE PRECISION, allocatable, dimension (:,:) :: T
+      IMPLICIT DOUBLE PRECISION (A-H,K-Z)
+      DOUBLE PRECISION, ALLOCATABLE, DIMENSION (:)   :: At
+      DOUBLE PRECISION, ALLOCATABLE, DIMENSION (:,:) :: T
 
       F1o= 0d0
       T1o= 0d0
@@ -506,14 +508,14 @@
 1     ALLOCATE ( T(iN,4), At(-1:iN+1) )
       At = 0d0
       DO i = 1, iN
-         n = dble(i)
+         n = DBLE(i)
 
          T(i,1) = (n-1d0)*(gam(n-1d0,al)-1d0)-(n-1d0)*(2d0*n-3d0)/(2d0*n-1d0)*(gam(n,al)-1d0)
          T(i,2) = (2d0*n+1d0)-5d0*gam(n,al)-n*(2d0*n-1d0)/(2d0*n+1d0)*(gam(n-1d0,al)+1d0)   &
                 + (n+1d0)*(2d0*n+3d0)/(2d0*n+1d0)*(gam(n+1d0,al)-1d0)
          T(i,3) = (n+2d0)*(2d0*n+5d0)/(2d0*n+3d0)*(gam(n,al)+1d0)-(n+2d0)*(gam(n+1d0,al)+1d0)
-         T(i,4) = dsqrt(2d0)*dexp(-(n+5d-1)*al)*( dexp(al)/dcosh((n-5d-1)*al)               &
-                - 2d0/dcosh((n+5d-1)*al)+dexp(-al)/dcosh((n+15d-1)*al) )
+         T(i,4) = DSQRT(2d0)*DEXP(-(n+5d-1)*al)*( DEXP(al)/DCOSH((n-5d-1)*al)               &
+                - 2d0/DCOSH((n+5d-1)*al)+DEXP(-al)/DCOSH((n+15d-1)*al) )
       ENDDO
 
       CALL TDMA(iN,T)
@@ -523,35 +525,32 @@
       sumF = 0d0
       sumT = 0d0
       DO i = 0, iN
-         n = dble(i)
+         n = DBLE(i)
          Bt_n = 2d0*(n-1d0)/(2d0*n-1d0)*(gam(n,al)-1d0)*At(i-1)     &
               - 2d0*gam(n,al)*At(i) + 2d0*(n+2d0)/(2d0*n+3d0)       &
               * (gam(n,al)+1d0)*At(i+1)
 
-         Dt_n = dsqrt(8d0)*dexp(-(n+5d-1)*al)/dcosh((n+5d-1)*al)    &
+         Dt_n = DSQRT(8d0)*DEXP(-(n+5d-1)*al)/DCOSH((n+5d-1)*al)    &
               - n*(n-1d0)/(2d0*n-1d0)*(gam(n,al)-1d0)      *At(i-1) &
               + (n+1d0)*(n+2d0)/(2d0*n+3d0)*(gam(n,al)+1d0)*At(i+1)
          sumF = sumF + Dt_n + n*(n+1d0) * Bt_n
-         sumT = sumT + 2d0*n* (n+1d0)*(2d0+dexp(-(2d0*n+1d0)*al))   &
-                            * At(i) + (2d0-dexp(-(2d0*n+1d0)*al))   &
-              * ( n*(n+1d0) * Bt_n / dtanh(al) -(2d0*n+1d0-1d0      &
-              /  dtanh(al)) * Dt_n )
+         sumT = sumT + 2d0*n* (n+1d0)*(2d0+DEXP(-(2d0*n+1d0)*al))   &
+                            * At(i) + (2d0-DEXP(-(2d0*n+1d0)*al))   &
+              * ( n*(n+1d0) * Bt_n / DTANH(al) -(2d0*n+1d0-1d0      &
+              /  DTANH(al)) * Dt_n )
       ENDDO
+      DEALLOCATE ( T, At )
 
-      F1 = dsqrt(2d0)/6d0 * dsinh(al) * sumF ! (3.57)
-      T1 =-dsinh(al)**2/dsqrt(288d0)  * sumT ! (3.58)
+      F1 = DSQRT(2d0)/6d0 * DSINH(al) * sumF ! (3.57)
+      T1 =-DSINH(al)**2/DSQRT(288d0)  * sumT ! (3.58)
 
-      rel = max(dabs(F1-F1o)/dabs(F1),dabs(T1-T1o)/dabs(T1))
+      rel = MAX(DABS(F1-F1o)/DABS(F1),DABS(T1-T1o)/DABS(T1))
       IF ( rel .GT. acu ) THEN
-         iN = int(1.1 * float(iN)) ! 10% increase
+         iN = INT(2.0 * FLOAT(iN)) ! 100% increase
          F1o= F1
          T1o= T1
-!        write(*,*) "n_max, F1, T1 = ", iN,F1,T1
-         DEALLOCATE ( T, At )
+!        WRITE(*,*) "n_max, F1, T1 = ", iN,F1,T1
          GOTO 1
-      ELSE
-         DEALLOCATE ( T, At )
-!        write(*,*) "n_max, F1, T1 = ", iN,F1,T1
       ENDIF
 
       RETURN
@@ -568,9 +567,9 @@
 ! in (4.40) in the paper
 
       SUBROUTINE GCB66R(al,F1,T1,acu)
-      implicit DOUBLE PRECISION (a-h,k-z)
-      DOUBLE PRECISION, allocatable, dimension (:)   :: Ar
-      DOUBLE PRECISION, allocatable, dimension (:,:) :: T
+      IMPLICIT DOUBLE PRECISION (A-H,K-Z)
+      DOUBLE PRECISION, ALLOCATABLE, DIMENSION (:)   :: Ar
+      DOUBLE PRECISION, ALLOCATABLE, DIMENSION (:,:) :: T
 
       F1o= 0d0
       T1o= 0d0
@@ -578,17 +577,17 @@
 1     ALLOCATE ( T(iN,4), Ar(-1:iN+1) )
       Ar = 0d0
       DO i = 1, iN
-         n = dble(i)
+         n = DBLE(i)
 
          T(i,1) = (n-1d0)*(gam(n-1d0,al)-1d0)-(n-1d0)*(2d0*n-3d0)/(2d0*n-1d0)*(gam(n,al)-1d0)
          T(i,2) = (2d0*n+1d0)-5d0*gam(n,al)-n*(2d0*n-1d0)/(2d0*n+1d0)*(gam(n-1d0,al)+1d0)   &
                 + (n+1d0)*(2d0*n+3d0)/(2d0*n+1d0)*(gam(n+1d0,al)-1d0)
          T(i,3) = (n+2d0)*(2d0*n+5d0)/(2d0*n+3d0)*(gam(n,al)+1d0)-(n+2d0)*(gam(n+1d0,al)+1d0)
-         T(i,4) = dsqrt(2d0) * dexp(-(n+5d-1)*al) / dsinh(al)   *                           &
-                ( (2d0*n+1d0)/ dcosh((n+5d-1)*al) *                                         &
-                ( dexp(al)/(2d0*n-1d0) + dexp(-al)/(2d0*n+3d0)  )                           &
-                - (2d0*n-1d0)/(2d0*n+1d0) / dcosh((n- 5d-1)*al)                             &
-                - (2d0*n+3d0)/(2d0*n+1d0) / dcosh((n+15d-1)*al) )
+         T(i,4) = DSQRT(2d0) * DEXP(-(n+5d-1)*al) / DSINH(al)   *                           &
+                ( (2d0*n+1d0)/ DCOSH((n+5d-1)*al) *                                         &
+                ( DEXP(al)/(2d0*n-1d0) + DEXP(-al)/(2d0*n+3d0)  )                           &
+                - (2d0*n-1d0)/(2d0*n+1d0) / DCOSH((n- 5d-1)*al)                             &
+                - (2d0*n+3d0)/(2d0*n+1d0) / DCOSH((n+15d-1)*al) )
       ENDDO
 
       CALL TDMA(iN,T)
@@ -598,38 +597,36 @@
       sumF = 0d0
       sumT = 0d0
       DO i = 0, iN
-         n = dble(i)
-         Br_n = 4d0*tau(n,al)/dsinh(al)/dcosh((n+5d-1)*al)          &
+         n = DBLE(i)
+         Br_n = 4d0*tau(n,al)/DSINH(al)/DCOSH((n+5d-1)*al)          &
               + 2d0*(n-1d0)/(2d0*n-1d0)*(gam(n,al)-1d0)*Ar(i-1)     &
               - 2d0*gam(n,al)*Ar(i) + 2d0*(n+2d0)/(2d0*n+3d0)       &
               * (gam(n,al)+1d0)*Ar(i+1)
 
-         Dr_n = dsqrt(8d0)/dsinh(al) / dcosh((n+05d-1)*al)          &
-              * (   n**2  /(2d0*n-1d0)*dexp(-(n-05d-1)*al)          &
-              - (n+1d0)**2/(2d0*n+3d0)*dexp(-(n+15d-1)*al)  )       &
+         Dr_n = DSQRT(8d0)/DSINH(al) / DCOSH((n+05d-1)*al)          &
+              * (   n**2  /(2d0*n-1d0)*DEXP(-(n-05d-1)*al)          &
+              - (n+1d0)**2/(2d0*n+3d0)*DEXP(-(n+15d-1)*al)  )       &
               -  n*(n-1d0)/(2d0*n-1d0)*(gam(n,al)-1d0)     *Ar(i-1) &
               + (n+1d0)*(n+2d0)/(2d0*n+3d0)*(gam(n,al)+1d0)*Ar(i+1)
 
          sumF = sumF + Dr_n + n*(n+1d0) * Br_n
-         sumT = sumT + 2d0*n*(n+1d0)*(2d0+dexp(-(2d0*n+1d0)*al))    &
-                            * Ar(i) +(2d0-dexp(-(2d0*n+1d0)*al))    &
-              * ( n*(n+1d0) * Br_n  / dtanh(al)-(2d0*n+1d0-1d0      &
-              /  dtanh(al)) * Dr_n  )
+         sumT = sumT + 2d0*n*(n+1d0)*(2d0+DEXP(-(2d0*n+1d0)*al))    &
+                            * Ar(i) +(2d0-DEXP(-(2d0*n+1d0)*al))    &
+              * ( n*(n+1d0) * Br_n  / DTANH(al)-(2d0*n+1d0-1d0      &
+              /  DTANH(al)) * Dr_n  )
       ENDDO
+      DEALLOCATE ( T, Ar )
 
-      F1 = dsqrt(2d0)/6d0*dsinh(al)**2       * sumF ! (4.24)
-      T1 = 1d0/3d0-dsinh(al)**3/dsqrt(288d0) * sumT ! (4.25)
+      F1 = DSQRT(2d0)/6d0*DSINH(al)**2       * sumF ! (4.24)
+      T1 = 1d0/3d0-DSINH(al)**3/DSQRT(288d0) * sumT ! (4.25)
 
-      rel = max(dabs(F1-F1o)/dabs(F1),dabs(T1-T1o)/dabs(T1))
+      rel = MAX(DABS(F1-F1o)/DABS(F1),DABS(T1-T1o)/DABS(T1))
       IF ( rel .GT. acu ) THEN
-         iN = int(1.1 * float(iN)) ! 10% increase
+         iN = INT(2.0 * FLOAT(iN)) ! 100% increase
          F1o= F1
          T1o= T1
-         DEALLOCATE ( T, Ar )
+!        WRITE(*,*) "n_max, F1, T1 = ", iN,F1,T1
          GOTO 1
-      ELSE
-         DEALLOCATE ( T, Ar )
-!        write(*,*) "n_max, F1, T1 = ", iN,F1,T1
       ENDIF
 
       RETURN
@@ -639,23 +636,23 @@
 
       DOUBLE PRECISION FUNCTION gam(n,al)
       DOUBLE PRECISION :: n,al
-      gam = dtanh((n+5d-1)*al)/dtanh(al)
+      gam = DTANH((n+5d-1)*al)/DTANH(al)
       RETURN
       END
 
       DOUBLE PRECISION FUNCTION tau(n,al)
       DOUBLE PRECISION :: n,al
-      tau = (dexp(-(n+15d-1)*al)/(2d0*n+3d0)-dexp(-(n-5d-1)*al)/(2d0*n-1d0))/dsqrt(2d0)
+      tau = (DEXP(-(n+15d-1)*al)/(2d0*n+3d0)-DEXP(-(n-5d-1)*al)/(2d0*n-1d0))/DSQRT(2d0)
       RETURN
       END
 ! ======================================================================
 
 ! === O'Neill (1969) - Rotation ========================================
-!     O'Neill, M. E. (1969). Exact solutions of the equations of slow viscous flow generated by the asymmetrical motion of two equal spheres. Applied ScientIFic Research, 21(1), 452-466.
+!     O'Neill, M. E. (1969). Exact solutions of the equations of slow viscous flow generated by the asymmetrical motion of two equal spheres. Applied Scientific Research, 21(1), 452-466.
       SUBROUTINE ON69R(al,f1,g1,acu)
-      implicit DOUBLE PRECISION (a-h,k-z)
-      DOUBLE PRECISION, allocatable, dimension (:)   :: An
-      DOUBLE PRECISION, allocatable, dimension (:,:) :: T
+      IMPLICIT DOUBLE PRECISION (A-H,K-Z)
+      DOUBLE PRECISION, ALLOCATABLE, DIMENSION (:)   :: An
+      DOUBLE PRECISION, ALLOCATABLE, DIMENSION (:,:) :: T
 
       f1o= 0d0
       g1o= 0d0
@@ -663,16 +660,16 @@
 1     ALLOCATE ( T(iN,4), An(-1:iN+1) )
       An = 0d0
       DO i = 1, iN
-         n = dble(i)
+         n = DBLE(i)
           fctr1 = (2d0*n-3d0)*gma(n,al)-(2d0*n-1d0)*gma(n-1d0,al)+2d0
           fctr2 = (2d0*n+3d0)*gma(n+1d0,al)-(2d0*n+5d0)*gma(n,al)-2d0
          T(i,1) = fctr1 * (n-1d0)/(2d0*n-1d0)
          T(i,2) = fctr1 * -n/(2d0*n+1d0) + fctr2 * -(n+1d0)/(2d0*n+1d0)
          T(i,3) = fctr2 * (n+2d0)/(2d0*n+3d0)
-         T(i,4) = dsqrt(2d0)/dcosh(al) * &
-                ( (gma(n-1d0,al)-1d0/dtanh(al))*(2d0*n-1d0)/(2d0*n+1d0)*dexp(-al) &
-                - (gma(n,al)-1d0/dtanh(al))*((2d0*n+1d0)/(2d0*n-1d0)*dexp(al)+(2d0*n+1d0)/(2d0*n+3d0)*dexp(-al)) &
-                + (gma(n+1d0,al)-1d0/dtanh(al))*(2d0*n+3d0)/(2d0*n+1d0)*dexp(al) )
+         T(i,4) = DSQRT(2d0)/DCOSH(al) * &
+                ( (gma(n-1d0,al)-1d0/DTANH(al))*(2d0*n-1d0)/(2d0*n+1d0)*DEXP(-al) &
+                - (gma(n,al)-1d0/DTANH(al))*((2d0*n+1d0)/(2d0*n-1d0)*DEXP(al)+(2d0*n+1d0)/(2d0*n+3d0)*DEXP(-al)) &
+                + (gma(n+1d0,al)-1d0/DTANH(al))*(2d0*n+3d0)/(2d0*n+1d0)*DEXP(al) )
       ENDDO
 
       CALL TDMA(iN,T)
@@ -682,28 +679,26 @@
       sumf = 0d0
       sumg = 0d0
       DO i = 0, iN
-         n = dble(i)
+         n = DBLE(i)
          D_n = (n+1d0)*(n+2d0)/(2d0*n+3d0)*An(i+1)*(gma(n,al)+1d0) &
              -  n     *(n-1d0)/(2d0*n-1d0)*An(i-1)*(gma(n,al)-1d0) &
-             + dsqrt(8d0) / dcosh(al) * (gma(n,al)-1d0/dtanh(al))  &
-             * ( n**2*dexp(al)/(2d0*n-1d0)-(n+1d0)**2*dexp(-al)/(2d0*n+3d0) )
+             + DSQRT(8d0) / DCOSH(al) * (gma(n,al)-1d0/DTANH(al))  &
+             * ( n**2*DEXP(al)/(2d0*n-1d0)-(n+1d0)**2*DEXP(-al)/(2d0*n+3d0) )
         sumf = sumf + D_n
-        sumg = sumg + D_n * (2d0*n+1d0-1d0/dtanh(al))
+        sumg = sumg + D_n * (2d0*n+1d0-1d0/DTANH(al))
       ENDDO
+      DEALLOCATE ( T, An )
 
-      f1 =-dsqrt(2d0)/3d0 * dsinh(al)**2 * sumf ! (5.1)
-      g1 = dsqrt(2d0)/4d0 * dsinh(al)**3 * sumg ! (5.2)
+      f1 =-DSQRT(2d0)/3d0 * DSINH(al)**2 * sumf ! (5.1)
+      g1 = DSQRT(2d0)/4d0 * DSINH(al)**3 * sumg ! (5.2)
 
-      rel = max(dabs(f1-f1o)/dabs(f1),dabs(g1-g1o)/dabs(g1))
+      rel = MAX(DABS(f1-f1o)/DABS(f1),DABS(g1-g1o)/DABS(g1))
       IF ( rel .GT. acu ) THEN
-         iN = int(1.1 * float(iN)) ! 10% increase
+         iN = INT(2.0 * FLOAT(iN)) ! 100% increase
         f1o = f1
         g1o = g1
-         DEALLOCATE ( T, An )
-         GOTO 1
-      ELSE
-         DEALLOCATE ( T, An )
-!        write(*,*) "n_max, f1, g1 = ", iN,f1,g1
+!       WRITE(*,*) "n_max, f1, g1 = ", iN,f1,g1
+        GOTO 1
       ENDIF
 
       RETURN
@@ -713,9 +708,9 @@
 ! === O'Neill (1969) - Translation =====================================
 !     O'Neill, M. E. (1969). Exact solutions of the equations of slow viscous flow generated by the asymmetrical motion of two equal spheres. Applied Scientific Research, 21(1), 452-466.
       SUBROUTINE ON69T(al,f2,g2,acu)
-      implicit DOUBLE PRECISION (a-h,k-z)
-      DOUBLE PRECISION, allocatable, dimension (:)   :: An
-      DOUBLE PRECISION, allocatable, dimension (:,:) :: T
+      IMPLICIT DOUBLE PRECISION (A-H,K-Z)
+      DOUBLE PRECISION, ALLOCATABLE, DIMENSION (:)   :: An
+      DOUBLE PRECISION, ALLOCATABLE, DIMENSION (:,:) :: T
 
       f2o= 0d0
       g2o= 0d0
@@ -723,13 +718,13 @@
 1     ALLOCATE ( T(iN,4), An(-1:iN+1) )
       An = 0d0
       DO i = 1, iN
-         n = dble(i)
+         n = DBLE(i)
           fctr1 = (2d0*n-3d0)*gma(n,al)-(2d0*n-1d0)*gma(n-1d0,al)+2d0
           fctr2 = (2d0*n+3d0)*gma(n+1d0,al)-(2d0*n+5d0)*gma(n,al)-2d0
          T(i,1) = fctr1 * (n-1d0)/(2d0*n-1d0)
          T(i,2) = fctr1 * -n/(2d0*n+1d0) + fctr2 * -(n+1d0)/(2d0*n+1d0)
          T(i,3) = fctr2 * (n+2d0)/(2d0*n+3d0)
-         T(i,4) = dsqrt(2d0)*dtanh(al)*(2d0*gma(n,al)-gma(n-1d0,al)-gma(n+1d0,al))
+         T(i,4) = DSQRT(2d0)*DTANH(al)*(2d0*gma(n,al)-gma(n-1d0,al)-gma(n+1d0,al))
       ENDDO
 
       CALL TDMA(iN,T)
@@ -739,27 +734,25 @@
       sumf = 0d0
       sumg = 0d0
       DO i = 0, iN
-         n = dble(i)
+         n = DBLE(i)
          D_n = (n+1d0)*(n+2d0)/(2d0*n+3d0)*An(i+1)*(gma(n,al)+1d0) &
              -  n     *(n-1d0)/(2d0*n-1d0)*An(i-1)*(gma(n,al)-1d0) &
-             + dsqrt(8d0)*(dtanh((n+5d-1)*al)**(-1)-1d0)
+             + DSQRT(8d0)*(DTANH((n+5d-1)*al)**(-1)-1d0)
         sumf = sumf + D_n
-        sumg = sumg + D_n * (2d0*n+1d0-1d0/dtanh(al))
+        sumg = sumg + D_n * (2d0*n+1d0-1d0/DTANH(al))
       ENDDO
+      DEALLOCATE ( T, An )
 
-      f2 = dsqrt(2d0)/3d0 * dsinh(al)    * sumf ! (5.3)
-      g2 =-dsqrt(2d0)/4d0 * dsinh(al)**2 * sumg ! (5.4)
+      f2 = DSQRT(2d0)/3d0 * DSINH(al)    * sumf ! (5.3)
+      g2 =-DSQRT(2d0)/4d0 * DSINH(al)**2 * sumg ! (5.4)
 
-      rel = max(dabs(f2-f2o)/dabs(f2),dabs(g2-g2o)/dabs(g2))
+      rel = MAX(DABS(f2-f2o)/DABS(f2),DABS(g2-g2o)/DABS(g2))
       IF ( rel .GT. acu ) THEN
-         iN = int(1.1 * float(iN)) ! 10% increase
+         iN = INT(2.0 * FLOAT(iN)) ! 100% increase
         f2o = f2
         g2o = g2
-         DEALLOCATE ( T, An )
-         GOTO 1
-      ELSE
-         DEALLOCATE ( T, An )
-!        write(*,*) "n_max, f2, g2 = ", iN,f2,g2,rel
+!       WRITE(*,*) "n_max, f2, g2 = ", iN,f2,g2,rel
+        GOTO 1
       ENDIF
 
       RETURN
@@ -768,9 +761,9 @@
 
 ! === Forces acting on a pair of freely rotating equal-sized spheres ===
 
-      SUBROUTINE TORQUEFREES(opp,al,F1,acu)
-      implicit DOUBLE PRECISION (a-h,k-z)
-      logical opp
+      SUBROUTINE FREEROTEQUAL(opp,al,F,acu)
+      IMPLICIT DOUBLE PRECISION (A-H,K-Z)
+      LOGICAL opp
 
       IF (opp) THEN
           CALL ON69T(al,F1,T1,acu)
@@ -790,7 +783,7 @@
           T_rot = T1
       ENDIF
 
-      F1 = F_tra - F_rot * T_tra / T_rot
+      F = F_tra - F_rot * T_tra / T_rot
 
       RETURN
       END SUBROUTINE
@@ -799,37 +792,37 @@
 ! === O'Neill & Majumdar (1970) - Rotation =============================
 !     O'Neill, M. E., & Majumdar, R. (1970). Asymmetrical slow viscous fluid motions caused by the translation or rotation of two spheres. Part I: The determination of exact solutions for any values of the ratio of radii and separation parameters. Zeitschrift für angewandte Mathematik und Physik ZAMP, 21(2), 164-179.
       SUBROUTINE ONM70R(opp,al,be,fg,F1,F2,T1,T2,acu)
-      implicit DOUBLE PRECISION (a-h,k-z)
-      DOUBLE PRECISION, allocatable, dimension (:)   :: An, Bn
-      DOUBLE PRECISION, allocatable, dimension (:,:) :: T
+      IMPLICIT DOUBLE PRECISION (A-H,K-Z)
+      DOUBLE PRECISION, ALLOCATABLE, DIMENSION(:)   :: An, Bn
+      DOUBLE PRECISION, ALLOCATABLE, DIMENSION(:,:) :: T
       DOUBLE PRECISION :: fg(4,4)
-      logical opp
+      LOGICAL opp
 
       F1o= 0d0
       F2o= 0d0
       T1o= 0d0
       T2o= 0d0
       iN = 25
-1     ALLOCATE ( T(2*iN,2*iN+1), An(-1:iN+1), Bn(-1:iN+1) )
+1     ALLOCATE ( T(2*iN,8), An(-1:iN+1), Bn(-1:iN+1) )
        j = 1 ! first droplet
 2      T = 0d0
       DO i = 1, iN
-         n = dble(i)
+         n = DBLE(i)
          fctr1 = (2d0*n-1d0)*alpha(n-1d0,al,be)-(2d0*n-3d0)*alpha(n,al,be)+2d0*kappa(al,be)
          fctr2 = (2d0*n+5d0)*alpha(n,al,be)-(2d0*n+3d0)*alpha(n+1d0,al,be)+2d0*kappa(al,be)
          fctr3 = (2d0*n-1d0)*(gamm(n-1d0,al,be)-dlta(n-1d0,al,be))-(2d0*n-3d0)*(gamm(n,al,be)-dlta(n,al,be))-4d0
          fctr4 = (2d0*n+5d0)*(gamm(n,al,be)-dlta(n,al,be))-(2d0*n+3d0)*(gamm(n+1d0,al,be)-dlta(n+1d0,al,be))+4d0
          IF (i.gt.1) THEN
-         T(2*i-1,2*i-3) = fctr3 * (n-1d0)/(2d0*n-1d0) ! B_n-1
-         T(2*i-1,2*i-2) = fctr1 * (n-1d0)/(2d0*n-1d0) ! A_n-1
+         T(2*i-1,2) = fctr3 * (n-1d0)/(2d0*n-1d0) ! B_n-1 (39)
+         T(2*i-1,3) = fctr1 * (n-1d0)/(2d0*n-1d0) ! A_n-1 (39)
          ENDIF
-         T(2*i-1,2*i-1) = fctr3 * -n/(2d0*n+1d0) - fctr4 * (n+1d0)/(2d0*n+1d0) ! B_n
-         T(2*i-1,2*i  ) = fctr1 * -n/(2d0*n+1d0) - fctr2 * (n+1d0)/(2d0*n+1d0) ! A_n
+         T(2*i-1,4) = fctr3 * -n/(2d0*n+1d0) - fctr4 * (n+1d0)/(2d0*n+1d0) ! B_n (39)
+         T(2*i-1,5) = fctr1 * -n/(2d0*n+1d0) - fctr2 * (n+1d0)/(2d0*n+1d0) ! A_n (39)
          IF (i.lt.iN) THEN
-         T(2*i-1,2*i+1) = fctr4 * (n+2d0)/(2d0*n+3d0) ! B_n+1
-         T(2*i-1,2*i+2) = fctr2 * (n+2d0)/(2d0*n+3d0) ! A_n+1
+         T(2*i-1,6) = fctr4 * (n+2d0)/(2d0*n+3d0) ! B_n+1 (39)
+         T(2*i-1,7) = fctr2 * (n+2d0)/(2d0*n+3d0) ! A_n+1 (39)
          ENDIF
-         T(2*i-1,2*iN+1)= D_1R(n,al,be)
+         T(2*i-1,8) = D_1R(n,al,be)
 
          fctr1 = (2d0*n-1d0)*(gamm(n-1d0,al,be)+dlta(n-1d0,al,be))-(2d0*n-3d0)*(gamm(n,al,be)+dlta(n,al,be))+4d0
          fctr2 = (2d0*n+5d0)*(gamm(n,al,be)+dlta(n,al,be))-(2d0*n+3d0)*(gamm(n+1d0,al,be)+dlta(n+1d0,al,be))-4d0
@@ -837,26 +830,25 @@
          fctr4 = (2d0*n+5d0)*alpha(n,al,be)-(2d0*n+3d0)*alpha(n+1d0,al,be)-2d0*kappa(al,be)
 
          IF (i.gt.1) THEN
-         T(2*i,2*i-3) = fctr3 * (n-1d0)/(2d0*n-1d0)
-         T(2*i,2*i-2) = fctr1 * (n-1d0)/(2d0*n-1d0)
+         T(2*i,1) = fctr3 * (n-1d0)/(2d0*n-1d0) ! B_n-1 (40)
+         T(2*i,2) = fctr1 * (n-1d0)/(2d0*n-1d0) ! A_n-1 (40)
          ENDIF
-         T(2*i,2*i-1) = fctr3 * -n/(2d0*n+1d0) - fctr4 * (n+1d0)/(2d0*n+1d0)
-         T(2*i,2*i  ) = fctr1 * -n/(2d0*n+1d0) - fctr2 * (n+1d0)/(2d0*n+1d0)
+         T(2*i,3) = fctr3 * -n/(2d0*n+1d0) - fctr4 * (n+1d0)/(2d0*n+1d0) ! B_n (40)
+         T(2*i,4) = fctr1 * -n/(2d0*n+1d0) - fctr2 * (n+1d0)/(2d0*n+1d0) ! A_n (40)
          IF (i.lt.iN) THEN
-         T(2*i,2*i+1) = fctr4 * (n+2d0)/(2d0*n+3d0)
-         T(2*i,2*i+2) = fctr2 * (n+2d0)/(2d0*n+3d0)
+         T(2*i,5) = fctr4 * (n+2d0)/(2d0*n+3d0) ! B_n+1 (40)
+         T(2*i,6) = fctr2 * (n+2d0)/(2d0*n+3d0) ! A_n+1 (40)
          ENDIF
-         T(2*i,2*iN+1)= D_2R(n,al,be)
+         T(2*i,8) = D_2R(n,al,be)
       ENDDO
 
-!     CALL GAUSS(2*iN,2*iN+1,T)
-      CALL GAUSSB(2*iN,3,3,T)
+      CALL THOMAS(2*iN,3,3,T)
 
       An = 0d0
       Bn = 0d0
       DO i = 1, iN
-         An(i) = T(2*i  ,2*iN+1)
-         Bn(i) = T(2*i-1,2*iN+1)
+         An(i) = T(2*i  ,8)
+         Bn(i) = T(2*i-1,8)
       ENDDO
 
        f11 = 0d0
@@ -864,30 +856,30 @@
        f12 = 0d0
        g12 = 0d0
       DO i = 0, iN
-         n = dble(i)
+         n = DBLE(i)
         En =-(kappa(al,be)+alpha(n,al,be))/2d0*(n*(n-1d0)/(2d0*n-1d0)*An(i-1)-(n+1d0)*(n+2d0)/(2d0*n+3d0)*An(i+1))-(gamm(n,al,be) &
            - dlta(n,al,be))/2d0*(n*(n-1d0)/(2d0*n-1d0)*Bn(i-1)-(n+1d0)*(n+2d0)/(2d0*n+3d0)*Bn(i+1))+n*(n-1d0)/(2d0*n-1d0)*Bn(i-1) &
-           + (n+1d0)*(n+2d0)/(2d0*n+3d0)*Bn(i+1)+(lambda(n,al)/dsinh(al) &
-           - dsqrt(2d0)*(2d0*n+1d0)*dexp(-(n+5d-1)*al))*dsinh((n+5d-1)*be)/dsinh((n+5d-1)*(al-be))
+           + (n+1d0)*(n+2d0)/(2d0*n+3d0)*Bn(i+1)+(lambda(n,al)/DSINH(al) &
+           - DSQRT(2d0)*(2d0*n+1d0)*DEXP(-(n+5d-1)*al))*DSINH((n+5d-1)*be)/DSINH((n+5d-1)*(al-be))
 
         Fn = (gamm(n,al,be)+dlta(n,al,be))/2d0*(n*(n-1d0)/(2d0*n-1d0)*An(i-1)-(n+1d0)*(n+2d0)/(2d0*n+3d0)*An(i+1))-(kappa(al,be) &
            - alpha(n,al,be))/2d0*(n*(n-1d0)/(2d0*n-1d0)*Bn(i-1)-(n+1d0)*(n+2d0)/(2d0*n+3d0)*Bn(i+1))+n*(n-1d0)/(2d0*n-1d0)*An(i-1) &
-           + (n+1d0)*(n+2d0)/(2d0*n+3d0)*An(i+1)-(lambda(n,al)/dsinh(al) &
-           - dsqrt(2d0)*(2d0*n+1d0)*dexp(-(n+5d-1)*al))*dcosh((n+5d-1)*be)/dsinh((n+5d-1)*(al-be))
+           + (n+1d0)*(n+2d0)/(2d0*n+3d0)*An(i+1)-(lambda(n,al)/DSINH(al) &
+           - DSQRT(2d0)*(2d0*n+1d0)*DEXP(-(n+5d-1)*al))*DCOSH((n+5d-1)*be)/DSINH((n+5d-1)*(al-be))
 
        f11 = f11 + ( En + Fn )
        f12 = f12 + ( En - Fn )
-       g11 = g11 + ( En + Fn ) * ( 2d0*n + 1d0 - 1d0 / dtanh( al) )
-       g12 = g12 + ( En - Fn ) * ( 2d0*n + 1d0 - 1d0 / dtanh(-be) )
+       g11 = g11 + ( En + Fn ) * ( 2d0*n + 1d0 - 1d0 / DTANH( al) )
+       g12 = g12 + ( En - Fn ) * ( 2d0*n + 1d0 - 1d0 / DTANH(-be) )
       ENDDO
 
-      f11 = dsqrt(2d0)/3d0*dsinh( al)**2*f11 ! (5.7)
-      f12 = dsqrt(2d0)/3d0*dsinh(-be)**2*f12 ! (5.9)
-      g11 = dsqrt(2d0)/4d0*dsinh( al)**3*g11 ! (5.8)
-      g12 = dsqrt(2d0)/4d0*dsinh(-be)**3*g12 ! (5.10) typo !
+      f11 = DSQRT(2d0)/3d0*DSINH( al)**2*f11 ! (5.7)
+      f12 = DSQRT(2d0)/3d0*DSINH(-be)**2*f12 ! (5.9)
+      g11 = DSQRT(2d0)/4d0*DSINH( al)**3*g11 ! (5.8)
+      g12 = DSQRT(2d0)/4d0*DSINH(-be)**3*g12 ! (5.10) typo !
 
-!     IF ( j .EQ. 1 ) write(*,*)"f11,f12,g11,g12=",f11,f12,g11,g12
-!     IF ( j .EQ. 2 ) write(*,*)"f12,f11,g12,g11=",f12,f11,g12,g11
+!     IF ( j .EQ. 1 ) WRITE(*,*)"f11,f12,g11,g12=",f11,f12,g11,g12
+!     IF ( j .EQ. 2 ) WRITE(*,*)"f12,f11,g12,g11=",f12,f11,g12,g11
 
       IF ( j .EQ. 1 ) THEN
        fg(1,1) = f11
@@ -922,9 +914,9 @@
          T2 =-fg(1,4) + fg(2,4)
       ENDIF
 
-      rel = max(dabs(F1-F1o)/dabs(F1),dabs(F2-F2o)/dabs(F2),dabs(T1-T1o)/dabs(T1),dabs(T2-T2o)/dabs(T2))
+      rel = MAX(DABS(F1-F1o)/DABS(F1),DABS(F2-F2o)/DABS(F2),DABS(T1-T1o)/DABS(T1),DABS(T2-T2o)/DABS(T2))
       IF ( rel .GT. acu ) THEN
-         iN = int(1.2 * float(iN)) ! 20% increase
+         iN = INT(1.5 * FLOAT(iN)) ! 50% increase
         F1o = F1
         F2o = F2
         T1o = T1
@@ -940,64 +932,63 @@
 ! === O'Neill & Majumdar (1970) - Translation ==========================
 !     O'Neill, M. E., & Majumdar, R. (1970). Asymmetrical slow viscous fluid motions caused by the translation or rotation of two spheres. Part I: The determination of exact solutions for any values of the ratio of radii and separation parameters. Zeitschrift für angewandte Mathematik und Physik ZAMP, 21(2), 164-179.
       SUBROUTINE ONM70T(opp,al,be,fg,F1,F2,T1,T2,acu)
-      implicit DOUBLE PRECISION (a-h,k-z)
-      DOUBLE PRECISION, allocatable, dimension (:)   :: An, Bn
-      DOUBLE PRECISION, allocatable, dimension (:,:) :: T
+      IMPLICIT DOUBLE PRECISION (A-H,K-Z)
+      DOUBLE PRECISION, ALLOCATABLE, DIMENSION(:)   :: An, Bn
+      DOUBLE PRECISION, ALLOCATABLE, DIMENSION(:,:) :: T
       DOUBLE PRECISION :: fg(4,4)
-      logical opp
+      LOGICAL opp
 
       F1o= 0d0
       F2o= 0d0
       T1o= 0d0
       T2o= 0d0
       iN = 25
-1     ALLOCATE ( T(2*iN,2*iN+1), An(-1:iN+1), Bn(-1:iN+1) )
+1     ALLOCATE ( T(2*iN,8), An(-1:iN+1), Bn(-1:iN+1) )
        j = 1 ! first droplet
 2      T = 0d0
 
       DO i = 1, iN
-         n = dble(i)
+         n = DBLE(i)
          fctr1 = (2d0*n-1d0)*alpha(n-1d0,al,be)-(2d0*n-3d0)*alpha(n,al,be)+2d0*kappa(al,be)
          fctr2 = (2d0*n+5d0)*alpha(n,al,be)-(2d0*n+3d0)*alpha(n+1d0,al,be)+2d0*kappa(al,be)
          fctr3 = (2d0*n-1d0)*(gamm(n-1d0,al,be)-dlta(n-1d0,al,be))-(2d0*n-3d0)*(gamm(n,al,be)-dlta(n,al,be))-4d0
          fctr4 = (2d0*n+5d0)*(gamm(n,al,be)-dlta(n,al,be))-(2d0*n+3d0)*(gamm(n+1d0,al,be)-dlta(n+1d0,al,be))+4d0
          IF (i.gt.1) THEN
-         T(2*i-1,2*i-3) = fctr3 * (n-1d0)/(2d0*n-1d0)
-         T(2*i-1,2*i-2) = fctr1 * (n-1d0)/(2d0*n-1d0)
+         T(2*i-1,2) = fctr3 * (n-1d0)/(2d0*n-1d0) ! B_n-1 (39)
+         T(2*i-1,3) = fctr1 * (n-1d0)/(2d0*n-1d0) ! A_n-1 (39)
          ENDIF
-         T(2*i-1,2*i-1) = fctr3 * -n/(2d0*n+1d0) - fctr4 * (n+1d0)/(2d0*n+1d0)
-         T(2*i-1,2*i  ) = fctr1 * -n/(2d0*n+1d0) - fctr2 * (n+1d0)/(2d0*n+1d0)
+         T(2*i-1,4) = fctr3 * -n/(2d0*n+1d0) - fctr4 * (n+1d0)/(2d0*n+1d0) ! B_n (39)
+         T(2*i-1,5) = fctr1 * -n/(2d0*n+1d0) - fctr2 * (n+1d0)/(2d0*n+1d0) ! A_n (39)
          IF (i.lt.iN) THEN
-         T(2*i-1,2*i+1) = fctr4 * (n+2d0)/(2d0*n+3d0)
-         T(2*i-1,2*i+2) = fctr2 * (n+2d0)/(2d0*n+3d0)
+         T(2*i-1,6) = fctr4 * (n+2d0)/(2d0*n+3d0) ! B_n+1 (39)
+         T(2*i-1,7) = fctr2 * (n+2d0)/(2d0*n+3d0) ! A_n+1 (39)
          ENDIF
-         T(2*i-1,2*iN+1)= D_1T(n,al,be)
+         T(2*i-1,8) = D_1T(n,al,be)
 
          fctr1 = (2d0*n-1d0)*(gamm(n-1d0,al,be)+dlta(n-1d0,al,be))-(2d0*n-3d0)*(gamm(n,al,be)+dlta(n,al,be))+4d0
          fctr2 = (2d0*n+5d0)*(gamm(n,al,be)+dlta(n,al,be))-(2d0*n+3d0)*(gamm(n+1d0,al,be)+dlta(n+1d0,al,be))-4d0
          fctr3 = (2d0*n-1d0)*alpha(n-1d0,al,be)-(2d0*n-3d0)*alpha(n,al,be)-2d0*kappa(al,be)
          fctr4 = (2d0*n+5d0)*alpha(n,al,be)-(2d0*n+3d0)*alpha(n+1d0,al,be)-2d0*kappa(al,be)
          IF (i.gt.1) THEN
-         T(2*i,2*i-3) = fctr3 * (n-1d0)/(2d0*n-1d0)
-         T(2*i,2*i-2) = fctr1 * (n-1d0)/(2d0*n-1d0)
+         T(2*i,1) = fctr3 * (n-1d0)/(2d0*n-1d0) ! B_n-1 (40)
+         T(2*i,2) = fctr1 * (n-1d0)/(2d0*n-1d0) ! A_n-1 (40)
          ENDIF
-         T(2*i,2*i-1) = fctr3 * -n/(2d0*n+1d0) - fctr4 * (n+1d0)/(2d0*n+1d0)
-         T(2*i,2*i  ) = fctr1 * -n/(2d0*n+1d0) - fctr2 * (n+1d0)/(2d0*n+1d0)
+         T(2*i,3) = fctr3 * -n/(2d0*n+1d0) - fctr4 * (n+1d0)/(2d0*n+1d0) ! B_n (40)
+         T(2*i,4) = fctr1 * -n/(2d0*n+1d0) - fctr2 * (n+1d0)/(2d0*n+1d0) ! A_n (40)
          IF (i.lt.iN) THEN
-         T(2*i,2*i+1) = fctr4 * (n+2d0)/(2d0*n+3d0)
-         T(2*i,2*i+2) = fctr2 * (n+2d0)/(2d0*n+3d0)
+         T(2*i,5) = fctr4 * (n+2d0)/(2d0*n+3d0) ! B_n+1 (40)
+         T(2*i,6) = fctr2 * (n+2d0)/(2d0*n+3d0) ! A_n+1 (40)
          ENDIF
-         T(2*i,2*iN+1)= D_2T(n,al,be)
+         T(2*i,8) = D_2T(n,al,be)
       ENDDO
 
-!     CALL GAUSS(2*iN,2*iN+1,T)
-      CALL GAUSSB(2*iN,3,3,T)
+      CALL THOMAS(2*iN,3,3,T)
 
       An = 0d0
       Bn = 0d0
       DO i = 1, iN
-         An(i) = T(2*i  ,2*iN+1)
-         Bn(i) = T(2*i-1,2*iN+1)
+         An(i) = T(2*i  ,8)
+         Bn(i) = T(2*i-1,8)
       ENDDO
 
        f21 = 0d0
@@ -1005,30 +996,30 @@
        f22 = 0d0
        g22 = 0d0
       DO i = 0, iN
-         n = dble(i)
+         n = DBLE(i)
         En =-(kappa(al,be)+alpha(n,al,be))/2d0*(n*(n-1d0)/(2d0*n-1d0)*An(i-1)-(n+1d0)*(n+2d0)/(2d0*n+3d0)*An(i+1))-(gamm(n,al,be) &
            - dlta(n,al,be))/2d0*(n*(n-1d0)/(2d0*n-1d0)*Bn(i-1)-(n+1d0)*(n+2d0)/(2d0*n+3d0)*Bn(i+1))+n*(n-1d0)/(2d0*n-1d0)*Bn(i-1) &
-           + (n+1d0)*(n+2d0)/(2d0*n+3d0)*Bn(i+1)-dsqrt(8d0)*dexp(-(n+5d-1)*al) &
-           * dsinh((n+5d-1)*be)/dsinh((n+5d-1)*(al-be))
+           + (n+1d0)*(n+2d0)/(2d0*n+3d0)*Bn(i+1)-DSQRT(8d0)*DEXP(-(n+5d-1)*al) &
+           * DSINH((n+5d-1)*be)/DSINH((n+5d-1)*(al-be))
 
         Fn = (gamm(n,al,be)+dlta(n,al,be))/2d0*(n*(n-1d0)/(2d0*n-1d0)*An(i-1)-(n+1d0)*(n+2d0)/(2d0*n+3d0)*An(i+1))-(kappa(al,be) &
            - alpha(n,al,be))/2d0*(n*(n-1d0)/(2d0*n-1d0)*Bn(i-1)-(n+1d0)*(n+2d0)/(2d0*n+3d0)*Bn(i+1))+n*(n-1d0)/(2d0*n-1d0)*An(i-1) &
-           + (n+1d0)*(n+2d0)/(2d0*n+3d0)*An(i+1)+dsqrt(8d0)*dexp(-(n+5d-1)*al) &
-           * dcosh((n+5d-1)*be)/dsinh((n+5d-1)*(al-be))
+           + (n+1d0)*(n+2d0)/(2d0*n+3d0)*An(i+1)+DSQRT(8d0)*DEXP(-(n+5d-1)*al) &
+           * DCOSH((n+5d-1)*be)/DSINH((n+5d-1)*(al-be))
 
        f21 = f21 + ( En + Fn )
        f22 = f22 + ( En - Fn )
-       g21 = g21 + ( En + Fn ) * ( 2d0*n + 1d0 - 1d0 / dtanh( al) )
-       g22 = g22 + ( En - Fn ) * ( 2d0*n + 1d0 - 1d0 / dtanh(-be) )
+       g21 = g21 + ( En + Fn ) * ( 2d0*n + 1d0 - 1d0 / DTANH( al) )
+       g22 = g22 + ( En - Fn ) * ( 2d0*n + 1d0 - 1d0 / DTANH(-be) )
       ENDDO
 
-      f21 = dsqrt(2d0)/3d0*dsinh( al)  * f21 ! (5.11)
-      f22 = dsqrt(2d0)/3d0*dsinh(-be)  * f22 ! (5.11)
-      g21 = dsqrt(2d0)/4d0*dsinh( al)**2*g21 ! (5.12)
-      g22 = dsqrt(2d0)/4d0*dsinh(-be)**2*g22 ! (5.13)
+      f21 = DSQRT(2d0)/3d0*DSINH( al)  * f21 ! (5.11)
+      f22 = DSQRT(2d0)/3d0*DSINH(-be)  * f22 ! (5.11)
+      g21 = DSQRT(2d0)/4d0*DSINH( al)**2*g21 ! (5.12)
+      g22 = DSQRT(2d0)/4d0*DSINH(-be)**2*g22 ! (5.13)
 
-!     IF ( j .EQ. 1 ) write(*,*)"f21,f22,g21,g22=",f21,f22,g21,g22
-!     IF ( j .EQ. 2 ) write(*,*)"f22,f21,g22,g21=",f22,f21,g22,g21
+!     IF ( j .EQ. 1 ) WRITE(*,*)"f21,f22,g21,g22=",f21,f22,g21,g22
+!     IF ( j .EQ. 2 ) WRITE(*,*)"f22,f21,g22,g21=",f22,f21,g22,g21
 
       IF ( j .EQ. 1 ) THEN ! first droplet
          fg(3,1) = f21
@@ -1074,9 +1065,9 @@
          T2 = T2 + g21
       ENDIF
 
-      rel = max(dabs(F1-F1o)/dabs(F1),dabs(F2-F2o)/dabs(F2),dabs(T1-T1o)/dabs(T1),dabs(T2-T2o)/dabs(T2))
+      rel = MAX(DABS(F1-F1o)/DABS(F1),DABS(F2-F2o)/DABS(F2),DABS(T1-T1o)/DABS(T1),DABS(T2-T2o)/DABS(T2))
       IF ( rel .GT. acu ) THEN
-         iN = int(1.2 * float(iN)) ! 20% increase
+         iN = INT(1.3 * FLOAT(iN)) ! 30% increase
         F1o = F1
         F2o = F2
         T1o = T1
@@ -1093,73 +1084,73 @@
 
       DOUBLE PRECISION FUNCTION alpha(n,al,be)
       DOUBLE PRECISION :: n,al,be
-      alpha = dsinh(al-be)/dsinh(al)/dsinh(be)/dsinh((n+5d-1)*(al-be))
-      alpha = alpha * dsinh((n+5d-1)*(al+be))
+      alpha = DSINH(al-be)/DSINH(al)/DSINH(be)/DSINH((n+5d-1)*(al-be))
+      alpha = alpha * DSINH((n+5d-1)*(al+be))
       RETURN
       END
 
       DOUBLE PRECISION FUNCTION gamm(n,al,be)
       DOUBLE PRECISION :: n,al,be
-      gamm = dsinh(al-be)/dsinh(al)/dsinh(be)/dsinh((n+5d-1)*(al-be))
-      gamm = gamm * dcosh((n+5d-1)*(al+be))
+      gamm = DSINH(al-be)/DSINH(al)/DSINH(be)/DSINH((n+5d-1)*(al-be))
+      gamm = gamm * DCOSH((n+5d-1)*(al+be))
       RETURN
       END
 
       DOUBLE PRECISION FUNCTION dlta(n,al,be)
       DOUBLE PRECISION :: n,al,be
-      dlta = dsinh(al-be)/dsinh(al)/dsinh(be)/dsinh((n+5d-1)*(al-be))
-      dlta = dlta * dcosh((n+5d-1)*(al-be))
+      dlta = DSINH(al-be)/DSINH(al)/DSINH(be)/DSINH((n+5d-1)*(al-be))
+      dlta = dlta * DCOSH((n+5d-1)*(al-be))
       RETURN
       END
 
       DOUBLE PRECISION FUNCTION kappa(al,be)
       DOUBLE PRECISION :: al,be
-      kappa = dsinh(al+be)/dsinh(al)/dsinh(be)
+      kappa = DSINH(al+be)/DSINH(al)/DSINH(be)
       RETURN
       END
 
       DOUBLE PRECISION FUNCTION lambda(n,al)
       DOUBLE PRECISION :: n,al
-      lambda = dexp(-(n+5d-1)*al)/dsqrt(2d0)
-      lambda = lambda * ( dexp(-al)/(2d0*n+3d0) - dexp(al)/(2d0*n-1d0) )
+      lambda = DEXP(-(n+5d-1)*al)/DSQRT(2d0)
+      lambda = lambda * ( DEXP(-al)/(2d0*n+3d0) - DEXP(al)/(2d0*n-1d0) )
       RETURN
       END
 
       DOUBLE PRECISION FUNCTION D_1R(n,al,be)
       DOUBLE PRECISION :: n,al,be
-      D_1R =-(2d0*n+1d0)**2*dsinh((n+5d-1)*be)/dsinh((n+5d-1)*(al-be))
-      D_1R = D_1R * ( dexp(al)/(2d0*n-1d0) + dexp(-al)/(2d0*n+3d0) )
-      D_1R = D_1R + (2d0*n-1d0)*dsinh((n-05d-1)*be)/dsinh((n-05d-1)*(al-be))
-      D_1R = D_1R + (2d0*n+3d0)*dsinh((n+15d-1)*be)/dsinh((n+15d-1)*(al-be))
-      D_1R = D_1R * dsqrt(8d0) *dexp(-(n+05d-1)*al)/(2d0*n+1d0)/dsinh(al)
+      D_1R =-(2d0*n+1d0)**2*DSINH((n+5d-1)*be)/DSINH((n+5d-1)*(al-be))
+      D_1R = D_1R * ( DEXP(al)/(2d0*n-1d0) + DEXP(-al)/(2d0*n+3d0) )
+      D_1R = D_1R + (2d0*n-1d0)*DSINH((n-05d-1)*be)/DSINH((n-05d-1)*(al-be))
+      D_1R = D_1R + (2d0*n+3d0)*DSINH((n+15d-1)*be)/DSINH((n+15d-1)*(al-be))
+      D_1R = D_1R * DSQRT(8d0) *DEXP(-(n+05d-1)*al)/(2d0*n+1d0)/DSINH(al)
       RETURN
       END
 
       DOUBLE PRECISION FUNCTION D_2R(n,al,be)
       DOUBLE PRECISION :: n,al,be
-      D_2R =-(2d0*n+1d0)**2*dcosh((n+5d-1)*be)/dsinh((n+5d-1)*(al-be))
-      D_2R = D_2R * ( dexp(al)/(2d0*n-1d0) + dexp(-al)/(2d0*n+3d0) )
-      D_2R = D_2R + (2d0*n-1d0)*dcosh((n-05d-1)*be)/dsinh((n-05d-1)*(al-be))
-      D_2R = D_2R + (2d0*n+3d0)*dcosh((n+15d-1)*be)/dsinh((n+15d-1)*(al-be))
-      D_2R = D_2R * dsqrt(8d0) *dexp(-(n+05d-1)*al)/(2d0*n+1d0)/dsinh(al)
+      D_2R =-(2d0*n+1d0)**2*DCOSH((n+5d-1)*be)/DSINH((n+5d-1)*(al-be))
+      D_2R = D_2R * ( DEXP(al)/(2d0*n-1d0) + DEXP(-al)/(2d0*n+3d0) )
+      D_2R = D_2R + (2d0*n-1d0)*DCOSH((n-05d-1)*be)/DSINH((n-05d-1)*(al-be))
+      D_2R = D_2R + (2d0*n+3d0)*DCOSH((n+15d-1)*be)/DSINH((n+15d-1)*(al-be))
+      D_2R = D_2R * DSQRT(8d0) *DEXP(-(n+05d-1)*al)/(2d0*n+1d0)/DSINH(al)
       RETURN
       END
 
       DOUBLE PRECISION FUNCTION D_1T(n,al,be)
       DOUBLE PRECISION :: n,al,be
-      D_1T =  2d0 * dexp(-(n+05d-1)*al)*dsinh((n+05d-1)*be)/dsinh((n+05d-1)*(al-be))
-      D_1T = D_1T - dexp(-(n-05d-1)*al)*dsinh((n-05d-1)*be)/dsinh((n-05d-1)*(al-be))
-      D_1T = D_1T - dexp(-(n+15d-1)*al)*dsinh((n+15d-1)*be)/dsinh((n+15d-1)*(al-be))
-      D_1T = D_1T * dsqrt(8d0)
+      D_1T =  2d0 * DEXP(-(n+05d-1)*al)*DSINH((n+05d-1)*be)/DSINH((n+05d-1)*(al-be))
+      D_1T = D_1T - DEXP(-(n-05d-1)*al)*DSINH((n-05d-1)*be)/DSINH((n-05d-1)*(al-be))
+      D_1T = D_1T - DEXP(-(n+15d-1)*al)*DSINH((n+15d-1)*be)/DSINH((n+15d-1)*(al-be))
+      D_1T = D_1T * DSQRT(8d0)
       RETURN
       END
 
       DOUBLE PRECISION FUNCTION D_2T(n,al,be)
       DOUBLE PRECISION :: n,al,be
-      D_2T =  2d0 * dexp(-(n+05d-1)*al)*dcosh((n+05d-1)*be)/dsinh((n+05d-1)*(al-be))
-      D_2T = D_2T - dexp(-(n-05d-1)*al)*dcosh((n-05d-1)*be)/dsinh((n-05d-1)*(al-be))
-      D_2T = D_2T - dexp(-(n+15d-1)*al)*dcosh((n+15d-1)*be)/dsinh((n+15d-1)*(al-be))
-      D_2T = D_2T * dsqrt(8d0)
+      D_2T =  2d0 * DEXP(-(n+05d-1)*al)*DCOSH((n+05d-1)*be)/DSINH((n+05d-1)*(al-be))
+      D_2T = D_2T - DEXP(-(n-05d-1)*al)*DCOSH((n-05d-1)*be)/DSINH((n-05d-1)*(al-be))
+      D_2T = D_2T - DEXP(-(n+15d-1)*al)*DCOSH((n+15d-1)*be)/DSINH((n+15d-1)*(al-be))
+      D_2T = D_2T * DSQRT(8d0)
       RETURN
       END
 
@@ -1167,12 +1158,31 @@
 
 ! === Forces acting on a pair of freely rotating unequal-sized spheres =
 !     In O'Neill & Majumdar (1970), by setting the torques equal to zero, i.e. (5.16) = (5.17) = 0, we allow the particles to freely rotate. This leads to a system of equations that describes the angular velocities as functions of translational velocities, which then could be used in (5.14) and (5.15) to compute torque-free forces acting on two spheres translating normal to their line of centers.
-      SUBROUTINE TORQUEFREE(opp,al,be,F1,F2,acu)
-      implicit DOUBLE PRECISION (a-h,k-z)
-      DOUBLE PRECISION :: fg(4,4), Om(2,3)
-      logical opp
 
-      k = dsinh(al) / dsinh(-be)
+!     y: out normal to this plane
+!     ⨀ → x
+!     ↓                               T R A N S L A T I O N                 R O T A T I O N
+!     z                            ---------------------------     ---------------------------------
+!         ↺ Ω₁     F₁-x = —6πμa₁ { f21(α,β) V₁ + f22(-β,-α) V₂  -  f11(α,β) a₁ Ω₁ + f12(-β,-α) a₁ Ω₂  } → free rotation
+!      a₁ ◯ → V₁                   > 0           < 0               < 0              > 0
+!                  F₂-x = —6πμa₂ { f22(α,β) V₁ + f21(-β,-α) V₂  -  f12(α,β) a₂ Ω₁ + f11(-β,-α) a₂ Ω₂  } → free rotation
+!         ↺ Ω₂                     < 0           > 0               > 0              < 0
+!      a₂ ◯ → V₂   T₁-y = —8πμa₁²{-g21(α,β) V₁ - g22(-β,-α) V₂  +  g11(α,β) a₁ Ω₁ - g12(-β,-α) a₁ Ω₂  } = 0
+!                                  < 0           > 0               > 0              < 0
+!                  T₂-y = —8πμa₂²{ g22(α,β) V₁ + g21(-β,-α) V₂  -  g12(α,β) a₂ Ω₁ + g11(-β,-α) a₂ Ω₂  } = 0
+!                                  > 0           < 0               < 0              > 0
+ 
+!     To verify the signs used above we consider two particles with
+!     translational velocities along x+ and rotational velocities
+!     around y+ and the resistances are assumed to have the same
+!     fixed signs (there are exceptions) as in O'Neill & Majumdar.
+
+      SUBROUTINE FREEROTATION(opp,al,be,F1,F2,acu)
+      IMPLICIT DOUBLE PRECISION (A-H,K-Z)
+      DOUBLE PRECISION :: fg(4,4), Om(2,3)
+      LOGICAL opp
+
+      k = DSINH(al) / DSINH(-be)
       CALL ONM70R(opp,al,be,fg,F1,F2,T1,T2,acu)
       CALL ONM70T(opp,al,be,fg,F1,F2,T1,T2,acu)
 
@@ -1190,7 +1200,7 @@
       ENDIF
 
       CALL GAUSS(2,3,Om)
-!     WRITE(*,*) "Free Rotation Omega", Om(:,3)
+!     WRITE(*,*) 'Free Rotation Omega', Om(:,3)
 !     CHECK
 !     fg(1,2) = 4d0/3d0 * fg(4,3)
 !     fg(2,1) = 4d0/3d0 * fg(3,4)
@@ -1212,23 +1222,23 @@
 
 ! === Wacholder & Weihs (1972) =========================================
 !     Wacholder, E., & Weihs, D. (1972). Slow motion of a fluid sphere in the vicinity of another sphere or a plane boundary. Chemical Engineering Science, 27(10), 1817-1828.
-      SUBROUTINE WW72(si,al,F1,acu)
+      SUBROUTINE WW72(si,al,F,acu)
       IMPLICIT DOUBLE PRECISION (A-H,K-Z)
 
       sum1o = 0d0
         rel = 1d3
           i = 1
       DO WHILE ( rel .GT. acu )
-         n  = dble(i)
+         n  = DBLE(i)
        sum1 = sum1o + lambdaWW72(n,al,si) ! (2.46)
-        rel = dabs(sum1-sum1o)/dabs(sum1)
+        rel = DABS(sum1-sum1o)/DABS(sum1)
 !       WRITE(*,*) "n_max, sum1 = ", i,sum1
       sum1o = sum1
           i = i + 1
       ENDDO
 
-      lambdaWW = 4d0*(si+1d0)/(3d0*si+2d0)*dsinh(al)*sum1 ! Table 1
-      F1 = 4d0/3d0*dsinh(al)*sum1 ! (2.45) normalized ONLY by -6.pi.mu.a.U
+      lambdaWW = 4d0*(si+1d0)/(3d0*si+2d0)*DSINH(al)*sum1 ! Table 1
+      F = 4d0/3d0*DSINH(al)*sum1 ! (2.45) normalized ONLY by —6πμaU
 
       RETURN
       END SUBROUTINE
@@ -1237,15 +1247,15 @@
 
       DOUBLE PRECISION FUNCTION lambdaWW72(n,al,si)
       DOUBLE PRECISION :: n,al,si,denom
-      lambdaWW72 = 2d0*dsinh((2d0*n+1d0)*al)+(2d0*n+1d0)*dsinh(2d0*al)
-      lambdaWW72 = lambdaWW72 - 4d0*dsinh((n+1d0/2d0)*al)**2
-      lambdaWW72 = lambdaWW72 + ( (2d0*n+1d0)*dsinh(al) )**2
-      lambdaWW72 = lambdaWW72 * si + (2d0*n+3d0)*dexp(2d0*al)/2d0
-      lambdaWW72 = lambdaWW72 + 2d0*dexp(-(2d0*n+1d0)*al)-(2d0*n-1d0)*dexp(-2d0*al)/2d0
+      lambdaWW72 = 2d0*DSINH((2d0*n+1d0)*al)+(2d0*n+1d0)*DSINH(2d0*al)
+      lambdaWW72 = lambdaWW72 - 4d0*DSINH((n+1d0/2d0)*al)**2
+      lambdaWW72 = lambdaWW72 + ( (2d0*n+1d0)*DSINH(al) )**2
+      lambdaWW72 = lambdaWW72 * si + (2d0*n+3d0)*DEXP(2d0*al)/2d0
+      lambdaWW72 = lambdaWW72 + 2d0*DEXP(-(2d0*n+1d0)*al)-(2d0*n-1d0)*DEXP(-2d0*al)/2d0
       lambdaWW72 = lambdaWW72 * n*(n+1d0)/(2d0*n+3d0)/(2d0*n-1d0)
-!          denom = 2d0*dsinh((2d0*n+1d0)*al)+(2d0*n-1d0)*dsinh(2d0*al)  ! typo?!
-           denom = 2d0*dsinh((2d0*n+1d0)*al)+(2d0*n+1d0)*dsinh(2d0*al)  ! guess!
-           denom = denom * si + 2d0*(dcosh((2d0*n+1d0)*al)+dcosh(2d0*al))
+!          denom = 2d0*DSINH((2d0*n+1d0)*al)+(2d0*n-1d0)*DSINH(2d0*al)  ! typo?!
+           denom = 2d0*DSINH((2d0*n+1d0)*al)+(2d0*n+1d0)*DSINH(2d0*al)  ! guess!
+           denom = denom * si + 2d0*(DCOSH((2d0*n+1d0)*al)+DCOSH(2d0*al))
       lambdaWW72 = lambdaWW72 / denom
       RETURN
       END
@@ -1255,8 +1265,8 @@
 ! === Haber, Hetsroni, Solan (1973) - Explicit Method ==================
 !     Haber, S., Hetsroni, G., & Solan, A. (1973). On the low Reynolds number motion of two droplets. International Journal of Multiphase Flow, 1(1), 57-71.
       SUBROUTINE HHS73EXP(opp,lama,lamb,al,be,F1,F2,acu)
-      implicit DOUBLE PRECISION (a-h,k-z)
-      logical opp
+      IMPLICIT DOUBLE PRECISION (A-H,K-Z)
+      LOGICAL opp
 
           j = 1 ! first droplet
 1     sumao = 0d0
@@ -1264,7 +1274,7 @@
         rel = 1d3
           i = 1
       DO WHILE ( rel .GT. acu )
-         n  = dble(i)
+         n  = DBLE(i)
          k1 = n*(n+1d0)/(2d0*n-1d0)/(2d0*n+3d0)
 
        suma = sumao + ( delta0(n,k1,al,be)                           &
@@ -1277,8 +1287,8 @@
             + lamb  *   deltabar2(n,k1,al,be)                        &
             + lama*lamb*deltabar3(n,k1,al,be))/Delt(n,al,be,lama,lamb)
 
-         rel = max(dabs(suma-sumao)/dabs(suma),dabs(sumb-sumbo)/dabs(sumb))
-!        write(*,*) "n_max, suma, sumb = ", i,suma,sumb
+         rel = MAX(DABS(suma-sumao)/DABS(suma),DABS(sumb-sumbo)/DABS(sumb))
+!        WRITE(*,*) "n_max, suma, sumb = ", i,suma,sumb
          sumao = suma
          sumbo = sumb
              i = i + 1
@@ -1291,8 +1301,8 @@
 ! functions are ignored, not to be computed twice.
 
       IF ( j .EQ. 1 ) THEN
-      Lambda11 = dsinh(al)/3d0 * suma
-      Lambda12 = dsinh(al)/3d0 * sumb
+      Lambda11 = DSINH(al)/3d0 * suma
+      Lambda12 = DSINH(al)/3d0 * sumb
            tmp =-al
             al =-be
             be = tmp
@@ -1300,8 +1310,8 @@
             GOTO 1
       ENDIF
       
-      Lambda22 = dsinh(al)/3d0 * suma
-      Lambda21 = dsinh(al)/3d0 * sumb
+      Lambda22 = DSINH(al)/3d0 * suma
+      Lambda21 = DSINH(al)/3d0 * sumb
 
       IF (opp) THEN
          F1 = Lambda11 - Lambda12
@@ -1322,88 +1332,88 @@
 
       DOUBLE PRECISION FUNCTION delta0(n,k1,al,be)
       DOUBLE PRECISION :: n,k1,al,be
-      delta0 = (2d0*n+3d0)*dsinh((n+3d0/2d0)*(al-be))*dexp(-(n-1d0/2d0)*(al+be))
-      delta0 = delta0-(2d0*n-1d0)*dexp(-(n+3d0/2d0)*(al+be))*dsinh((n-1d0/2d0)*(al-be))
+      delta0 = (2d0*n+3d0)*DSINH((n+3d0/2d0)*(al-be))*DEXP(-(n-1d0/2d0)*(al+be))
+      delta0 = delta0-(2d0*n-1d0)*DEXP(-(n+3d0/2d0)*(al+be))*DSINH((n-1d0/2d0)*(al-be))
       delta0 = delta0*4d0*k1
       RETURN
       END
 
       DOUBLE PRECISION FUNCTION deltabar0(n,k1,al,be)
       DOUBLE PRECISION :: n,k1,al,be
-      deltabar0 =-(2d0*n+3d0)*dexp(-(n-1d0/2d0)*(al-be))*dsinh((n+3d0/2d0)*(al-be))
-      deltabar0 = deltabar0+(2d0*n-1d0)*dexp(-(n+3d0/2d0)*(al-be))*dsinh((n-1d0/2d0)*(al-be))
+      deltabar0 =-(2d0*n+3d0)*DEXP(-(n-1d0/2d0)*(al-be))*DSINH((n+3d0/2d0)*(al-be))
+      deltabar0 = deltabar0+(2d0*n-1d0)*DEXP(-(n+3d0/2d0)*(al-be))*DSINH((n-1d0/2d0)*(al-be))
       deltabar0 = deltabar0*4d0*k1
       RETURN
       END
 
       DOUBLE PRECISION FUNCTION delta1(n,k1,al,be)
       DOUBLE PRECISION :: n,k1,al,be
-      delta1 = 2d0*(2d0*n-1d0)*(2d0*n+3d0)*dexp(-(2d0*n+1d0)*be)
-      delta1 = delta1-(2d0*n+3d0)**2*dexp(-(n-1d0/2d0)*(al+be))*dcosh((n+3d0/2d0)*(al-be))
-      delta1 = delta1-(2d0*n-1d0)**2*dexp(-(n+3d0/2d0)*(al+be))*dcosh((n-1d0/2d0)*(al-be))
-      delta1 = delta1-(2d0*n-1d0)*(2d0*n+3d0)*dexp(-(n-1d0/2d0)*(al+be))*dsinh((n+3d0/2d0)*(al-be))
-      delta1 = delta1-(2d0*n-1d0)*(2d0*n+3d0)*dexp(-(n+3d0/2d0)*(al+be))*dsinh((n-1d0/2d0)*(al-be)) ! note: typo
+      delta1 = 2d0*(2d0*n-1d0)*(2d0*n+3d0)*DEXP(-(2d0*n+1d0)*be)
+      delta1 = delta1-(2d0*n+3d0)**2*DEXP(-(n-1d0/2d0)*(al+be))*DCOSH((n+3d0/2d0)*(al-be))
+      delta1 = delta1-(2d0*n-1d0)**2*DEXP(-(n+3d0/2d0)*(al+be))*DCOSH((n-1d0/2d0)*(al-be))
+      delta1 = delta1-(2d0*n-1d0)*(2d0*n+3d0)*DEXP(-(n-1d0/2d0)*(al+be))*DSINH((n+3d0/2d0)*(al-be))
+      delta1 = delta1-(2d0*n-1d0)*(2d0*n+3d0)*DEXP(-(n+3d0/2d0)*(al+be))*DSINH((n-1d0/2d0)*(al-be)) ! note: typo
       delta1 =-delta1*k1
       RETURN
       END
 
       DOUBLE PRECISION FUNCTION deltabar1(n,k1,al,be)
       DOUBLE PRECISION :: n,k1,al,be
-      deltabar1 =-2d0*(2d0*n-1d0)*(2d0*n+3d0)*dcosh(2d0*be)
-      deltabar1 = deltabar1+(2d0*n+3d0)**2*dexp(-(n-1d0/2d0)*(al-be))*dcosh((n+3d0/2d0)*(al-be))
-      deltabar1 = deltabar1+(2d0*n-1d0)**2*dexp(-(n+3d0/2d0)*(al-be))*dcosh((n-1d0/2d0)*(al-be))
-      deltabar1 = deltabar1+(2d0*n-1d0)*(2d0*n+3d0)*dexp(-(n-1d0/2d0)*(al-be))*dsinh((n+3d0/2d0)*(al-be))
-      deltabar1 = deltabar1+(2d0*n-1d0)*(2d0*n+3d0)*dexp(-(n+3d0/2d0)*(al-be))*dsinh((n-1d0/2d0)*(al-be))
+      deltabar1 =-2d0*(2d0*n-1d0)*(2d0*n+3d0)*DCOSH(2d0*be)
+      deltabar1 = deltabar1+(2d0*n+3d0)**2*DEXP(-(n-1d0/2d0)*(al-be))*DCOSH((n+3d0/2d0)*(al-be))
+      deltabar1 = deltabar1+(2d0*n-1d0)**2*DEXP(-(n+3d0/2d0)*(al-be))*DCOSH((n-1d0/2d0)*(al-be))
+      deltabar1 = deltabar1+(2d0*n-1d0)*(2d0*n+3d0)*DEXP(-(n-1d0/2d0)*(al-be))*DSINH((n+3d0/2d0)*(al-be))
+      deltabar1 = deltabar1+(2d0*n-1d0)*(2d0*n+3d0)*DEXP(-(n+3d0/2d0)*(al-be))*DSINH((n-1d0/2d0)*(al-be))
       deltabar1 =-deltabar1*k1
       RETURN
       END
 
       DOUBLE PRECISION FUNCTION delta2(n,k1,al,be)
       DOUBLE PRECISION :: n,k1,al,be
-      delta2 = 2d0*(2d0*n-1d0)*(2d0*n+3d0)*dexp(-(2d0*n+1d0)*al)
-      delta2 = delta2-(2d0*n+3d0)**2*dexp(-(n-1d0/2d0)*(al+be))*dcosh((n+3d0/2d0)*(al-be))
-      delta2 = delta2-(2d0*n-1d0)**2*dexp(-(n+3d0/2d0)*(al+be))*dcosh((n-1d0/2d0)*(al-be))
-      delta2 = delta2+(2d0*n-1d0)*(2d0*n+3d0)*dexp(-(n-1d0/2d0)*(al+be))*dsinh((n+3d0/2d0)*(al-be))
-      delta2 = delta2+(2d0*n-1d0)*(2d0*n+3d0)*dexp(-(n+3d0/2d0)*(al+be))*dsinh((n-1d0/2d0)*(al-be))
+      delta2 = 2d0*(2d0*n-1d0)*(2d0*n+3d0)*DEXP(-(2d0*n+1d0)*al)
+      delta2 = delta2-(2d0*n+3d0)**2*DEXP(-(n-1d0/2d0)*(al+be))*DCOSH((n+3d0/2d0)*(al-be))
+      delta2 = delta2-(2d0*n-1d0)**2*DEXP(-(n+3d0/2d0)*(al+be))*DCOSH((n-1d0/2d0)*(al-be))
+      delta2 = delta2+(2d0*n-1d0)*(2d0*n+3d0)*DEXP(-(n-1d0/2d0)*(al+be))*DSINH((n+3d0/2d0)*(al-be))
+      delta2 = delta2+(2d0*n-1d0)*(2d0*n+3d0)*DEXP(-(n+3d0/2d0)*(al+be))*DSINH((n-1d0/2d0)*(al-be))
       delta2 =-delta2*k1
       RETURN
       END
 
       DOUBLE PRECISION FUNCTION deltabar2(n,k1,al,be)
       DOUBLE PRECISION :: n,k1,al,be
-      deltabar2 =-2d0*(2d0*n-1d0)*(2d0*n+3d0)*dcosh(2d0*al)
-      deltabar2 = deltabar2+(2d0*n+3d0)**2*dexp(-(n-1d0/2d0)*(al-be))*dcosh((n+3d0/2d0)*(al-be))
-      deltabar2 = deltabar2+(2d0*n-1d0)**2*dexp(-(n+3d0/2d0)*(al-be))*dcosh((n-1d0/2d0)*(al-be))
-      deltabar2 = deltabar2+(2d0*n-1d0)*(2d0*n+3d0)*dexp(-(n-1d0/2d0)*(al-be))*dsinh((n+3d0/2d0)*(al-be))
-      deltabar2 = deltabar2+(2d0*n-1d0)*(2d0*n+3d0)*dexp(-(n+3d0/2d0)*(al-be))*dsinh((n-1d0/2d0)*(al-be))
+      deltabar2 =-2d0*(2d0*n-1d0)*(2d0*n+3d0)*DCOSH(2d0*al)
+      deltabar2 = deltabar2+(2d0*n+3d0)**2*DEXP(-(n-1d0/2d0)*(al-be))*DCOSH((n+3d0/2d0)*(al-be))
+      deltabar2 = deltabar2+(2d0*n-1d0)**2*DEXP(-(n+3d0/2d0)*(al-be))*DCOSH((n-1d0/2d0)*(al-be))
+      deltabar2 = deltabar2+(2d0*n-1d0)*(2d0*n+3d0)*DEXP(-(n-1d0/2d0)*(al-be))*DSINH((n+3d0/2d0)*(al-be))
+      deltabar2 = deltabar2+(2d0*n-1d0)*(2d0*n+3d0)*DEXP(-(n+3d0/2d0)*(al-be))*DSINH((n-1d0/2d0)*(al-be))
       deltabar2 =-deltabar2*k1
       RETURN
       END
 
       DOUBLE PRECISION FUNCTION delta3(n,k1,al,be)
       DOUBLE PRECISION :: n,k1,al,be
-      delta3 = (2d0*n-1d0)*(2d0*n+3d0)*(dexp(-(2d0*n+1d0)*be)-dexp(-(2d0*n+1d0)*al))
-      delta3 = delta3-(2d0*n+1d0)*(2d0*n+3d0)*dexp(-(n-1d0/2d0)*(al+be))*dsinh((n+3d0/2d0)*(al-be))
-      delta3 = delta3-(2d0*n+1d0)*(2d0*n-1d0)*dexp(-(n+3d0/2d0)*(al+be))*dsinh((n-1d0/2d0)*(al-be))
+      delta3 = (2d0*n-1d0)*(2d0*n+3d0)*(DEXP(-(2d0*n+1d0)*be)-DEXP(-(2d0*n+1d0)*al))
+      delta3 = delta3-(2d0*n+1d0)*(2d0*n+3d0)*DEXP(-(n-1d0/2d0)*(al+be))*DSINH((n+3d0/2d0)*(al-be))
+      delta3 = delta3-(2d0*n+1d0)*(2d0*n-1d0)*DEXP(-(n+3d0/2d0)*(al+be))*DSINH((n-1d0/2d0)*(al-be))
       delta3 =-delta3*2d0*k1 ! typo: negative sign mentioned by Zinchenko
       RETURN
       END
 
       DOUBLE PRECISION FUNCTION deltabar3(n,k1,al,be)
       DOUBLE PRECISION :: n,k1,al,be
-      deltabar3 =-2d0*(2d0*n-1d0)*(2d0*n+1d0)*(2d0*n+3d0)*dsinh(al-be)*dcosh(al+be)
-      deltabar3 = deltabar3+(2d0*n+1d0)**3*dsinh(2d0*(al-be))
-      deltabar3 = deltabar3+2d0*(2d0*n+1d0)**2*dcosh(2d0*(al-be))
-      deltabar3 = deltabar3-8d0*dexp(-(2d0*n+1d0)*(al-be))-2d0*(2d0*n-1d0)*(2d0*n+3d0)
+      deltabar3 =-2d0*(2d0*n-1d0)*(2d0*n+1d0)*(2d0*n+3d0)*DSINH(al-be)*DCOSH(al+be)
+      deltabar3 = deltabar3+(2d0*n+1d0)**3*DSINH(2d0*(al-be))
+      deltabar3 = deltabar3+2d0*(2d0*n+1d0)**2*DCOSH(2d0*(al-be))
+      deltabar3 = deltabar3-8d0*DEXP(-(2d0*n+1d0)*(al-be))-2d0*(2d0*n-1d0)*(2d0*n+3d0)
       deltabar3 =-deltabar3*k1
       RETURN
       END
 
       DOUBLE PRECISION FUNCTION Delt(n,al,be,lama,lamb)
       DOUBLE PRECISION :: n,al,be,lama,lamb
-      Delt = 4d0*dsinh((n-1d0/2d0)*(al-be))*dsinh((n+3d0/2d0)*(al-be))
-      Delt = Delt+(lama+lamb)*(2d0*dsinh((2d0*n+1d0)*(al-be))-(2d0*n+1d0)*dsinh(2d0*(al-be)))
-      Delt = Delt+(lama*lamb)*(4d0*dsinh((n+1d0/2d0)*(al-be))**2-((2d0*n+1d0)*dsinh(al-be))**2)
+      Delt = 4d0*DSINH((n-1d0/2d0)*(al-be))*DSINH((n+3d0/2d0)*(al-be))
+      Delt = Delt+(lama+lamb)*(2d0*DSINH((2d0*n+1d0)*(al-be))-(2d0*n+1d0)*DSINH(2d0*(al-be)))
+      Delt = Delt+(lama*lamb)*(4d0*DSINH((n+1d0/2d0)*(al-be))**2-((2d0*n+1d0)*DSINH(al-be))**2)
       RETURN
       END      
 ! ======================================================================
@@ -1411,92 +1421,92 @@
 ! === Haber, Hetsroni, Solan (1973) - Implicit Method ==================
 !     Haber, S., Hetsroni, G., & Solan, A. (1973). On the low Reynolds number motion of two droplets. International Journal of Multiphase Flow, 1(1), 57-71.
       SUBROUTINE HHS73IMP(opp,lama,lamb,al,be,F1,F2,acu)
-      implicit DOUBLE PRECISION (a-h,k-z)
-      DOUBLE PRECISION, dimension(8,9) :: T
-      logical opp
+      IMPLICIT DOUBLE PRECISION (A-H,K-Z)
+      DOUBLE PRECISION, DIMENSION(8,9) :: T
+      LOGICAL opp
 
       sum1o = 0d0
       sum2o = 0d0
         rel = 1d3
           i = 1
       DO WHILE ( rel .GT. acu )
-         n = dble(i)
+         n = DBLE(i)
         k1 = n*(n+1d0)/(2d0*n-1d0)/(2d0*n+3d0)
         k2 = n*(n+1d0)/4d0
 
 !        Eqs. [B-4] to [B-11] of HHS73:
 
-         T(1,1) = dcosh((n-1d0/2d0)*al)
-         T(1,2) = dsinh((n-1d0/2d0)*al)
-         T(1,3) = dcosh((n+3d0/2d0)*al)
-         T(1,4) = dsinh((n+3d0/2d0)*al)
+         T(1,1) = DCOSH((n-1d0/2d0)*al)
+         T(1,2) = DSINH((n-1d0/2d0)*al)
+         T(1,3) = DCOSH((n+3d0/2d0)*al)
+         T(1,4) = DSINH((n+3d0/2d0)*al)
          T(1,5:8) = 0d0
          T(1,9) = k1*f(n,al)
 
-         T(2,1) = dcosh((n-1d0/2d0)*be)
-         T(2,2) = dsinh((n-1d0/2d0)*be)
-         T(2,3) = dcosh((n+3d0/2d0)*be)
-         T(2,4) = dsinh((n+3d0/2d0)*be)
+         T(2,1) = DCOSH((n-1d0/2d0)*be)
+         T(2,2) = DSINH((n-1d0/2d0)*be)
+         T(2,3) = DCOSH((n+3d0/2d0)*be)
+         T(2,4) = DSINH((n+3d0/2d0)*be)
          T(2,5:8) = 0d0
          IF (opp) THEN
-         T(2,9) =-k1*f(n,-be) ! beta and alpha moving in an opposing direction
+         T(2,9) =-k1*f(n,-be) ! α and β moving in an opposing direction
          ELSE
-         T(2,9) =+k1*f(n,-be) ! beta and alpha moving in the same direction
+         T(2,9) =+k1*f(n,-be) ! α and β moving in the same direction
          ENDIF
 
          T(3,1:4) = 0d0
-         T(3,5) = dexp(-(n-1d0/2d0)*al)
-         T(3,6) = dexp(-(n+3d0/2d0)*al)
+         T(3,5) = DEXP(-(n-1d0/2d0)*al)
+         T(3,6) = DEXP(-(n+3d0/2d0)*al)
          T(3,7:8) = 0d0
          T(3,9) = k1*f(n,al)
 
          T(4,1:6) = 0d0
-         T(4,7) = dexp((n-1d0/2d0)*be)
-         T(4,8) = dexp((n+3d0/2d0)*be)
+         T(4,7) = DEXP((n-1d0/2d0)*be)
+         T(4,8) = DEXP((n+3d0/2d0)*be)
          IF (opp) THEN
-         T(4,9) =-k1*f(n,-be) ! beta and alpha moving in an opposing direction
+         T(4,9) =-k1*f(n,-be) ! α and β moving in an opposing direction
          ELSE
-         T(4,9) =+k1*f(n,-be) ! beta and alpha moving in the same direction
+         T(4,9) =+k1*f(n,-be) ! α and β moving in the same direction
          ENDIF
 
-         T(5,1) = (n-1d0/2d0)*dsinh((n-1d0/2d0)*al)
-         T(5,2) = (n-1d0/2d0)*dcosh((n-1d0/2d0)*al)
-         T(5,3) = (n+3d0/2d0)*dsinh((n+3d0/2d0)*al)
-         T(5,4) = (n+3d0/2d0)*dcosh((n+3d0/2d0)*al)
-         T(5,5) = (n-1d0/2d0)*dexp(-(n-1d0/2d0)*al)
-!        T(5,6) =-(n+3d0/2d0)*dexp(+(n+3d0/2d0)*al) !HHS73 typo?!
-         T(5,6) = (n+3d0/2d0)*dexp(-(n+3d0/2d0)*al) !WW72
+         T(5,1) = (n-1d0/2d0)*DSINH((n-1d0/2d0)*al)
+         T(5,2) = (n-1d0/2d0)*DCOSH((n-1d0/2d0)*al)
+         T(5,3) = (n+3d0/2d0)*DSINH((n+3d0/2d0)*al)
+         T(5,4) = (n+3d0/2d0)*DCOSH((n+3d0/2d0)*al)
+         T(5,5) = (n-1d0/2d0)*DEXP(-(n-1d0/2d0)*al)
+!        T(5,6) =-(n+3d0/2d0)*DEXP(+(n+3d0/2d0)*al) !HHS73 typo?!
+         T(5,6) = (n+3d0/2d0)*DEXP(-(n+3d0/2d0)*al) !WW72
          T(5,7:9) = 0d0
 
-         T(6,1) = (n-1d0/2d0)*dsinh((n-1d0/2d0)*be)
-         T(6,2) = (n-1d0/2d0)*dcosh((n-1d0/2d0)*be)
-         T(6,3) = (n+3d0/2d0)*dsinh((n+3d0/2d0)*be)
-         T(6,4) = (n+3d0/2d0)*dcosh((n+3d0/2d0)*be)
+         T(6,1) = (n-1d0/2d0)*DSINH((n-1d0/2d0)*be)
+         T(6,2) = (n-1d0/2d0)*DCOSH((n-1d0/2d0)*be)
+         T(6,3) = (n+3d0/2d0)*DSINH((n+3d0/2d0)*be)
+         T(6,4) = (n+3d0/2d0)*DCOSH((n+3d0/2d0)*be)
          T(6,5:6) = 0d0
-         T(6,7) =-(n-1d0/2d0)*dexp(+(n-1d0/2d0)*be)
-         T(6,8) =-(n+3d0/2d0)*dexp(+(n+3d0/2d0)*be)
+         T(6,7) =-(n-1d0/2d0)*DEXP(+(n-1d0/2d0)*be)
+         T(6,8) =-(n+3d0/2d0)*DEXP(+(n+3d0/2d0)*be)
          T(6,9) = 0d0
 
-         T(7,1) = (n-1d0/2d0)**2*dcosh((n-1d0/2d0)*al)
-         T(7,2) = (n-1d0/2d0)**2*dsinh((n-1d0/2d0)*al)
-         T(7,3) = (n+3d0/2d0)**2*dcosh((n+3d0/2d0)*al)
-         T(7,4) = (n+3d0/2d0)**2*dsinh((n+3d0/2d0)*al)
-         T(7,5) =-(n-1d0/2d0)**2*dexp(-(n-1d0/2d0)*al)*lama
-         T(7,6) =-(n+3d0/2d0)**2*dexp(-(n+3d0/2d0)*al)*lama
+         T(7,1) = (n-1d0/2d0)**2*DCOSH((n-1d0/2d0)*al)
+         T(7,2) = (n-1d0/2d0)**2*DSINH((n-1d0/2d0)*al)
+         T(7,3) = (n+3d0/2d0)**2*DCOSH((n+3d0/2d0)*al)
+         T(7,4) = (n+3d0/2d0)**2*DSINH((n+3d0/2d0)*al)
+         T(7,5) =-(n-1d0/2d0)**2*DEXP(-(n-1d0/2d0)*al)*lama
+         T(7,6) =-(n+3d0/2d0)**2*DEXP(-(n+3d0/2d0)*al)*lama
          T(7,7:8) = 0d0
          T(7,9) = (1d0-lama)*k2*g(n,al)
 
-         T(8,1) = (n-1d0/2d0)**2*dcosh((n-1d0/2d0)*be)
-         T(8,2) = (n-1d0/2d0)**2*dsinh((n-1d0/2d0)*be)
-         T(8,3) = (n+3d0/2d0)**2*dcosh((n+3d0/2d0)*be)
-         T(8,4) = (n+3d0/2d0)**2*dsinh((n+3d0/2d0)*be)
+         T(8,1) = (n-1d0/2d0)**2*DCOSH((n-1d0/2d0)*be)
+         T(8,2) = (n-1d0/2d0)**2*DSINH((n-1d0/2d0)*be)
+         T(8,3) = (n+3d0/2d0)**2*DCOSH((n+3d0/2d0)*be)
+         T(8,4) = (n+3d0/2d0)**2*DSINH((n+3d0/2d0)*be)
          T(8,5:6) = 0d0
-         T(8,7) =-(n-1d0/2d0)**2*dexp(+(n-1d0/2d0)*be)*lamb
-         T(8,8) =-(n+3d0/2d0)**2*dexp(+(n+3d0/2d0)*be)*lamb
+         T(8,7) =-(n-1d0/2d0)**2*DEXP(+(n-1d0/2d0)*be)*lamb
+         T(8,8) =-(n+3d0/2d0)**2*DEXP(+(n+3d0/2d0)*be)*lamb
          IF (opp) THEN
-         T(8,9) =-(1d0-lamb)*k2*g(n,-be) ! beta and alpha moving in an opposing direction
+         T(8,9) =-(1d0-lamb)*k2*g(n,-be) ! α and β moving in an opposing direction
          ELSE
-         T(8,9) =+(1d0-lamb)*k2*g(n,-be) ! beta and alpha moving in the same direction
+         T(8,9) =+(1d0-lamb)*k2*g(n,-be) ! α and β moving in the same direction
          ENDIF
 
          CALL GAUSS(8,9,T)
@@ -1504,14 +1514,14 @@
          sum1 = sum1o + SUM(T(1:4,9))                ! Summation of Eq. [29] in HHS73
          sum2 = sum2o + T(1,9)-T(2,9)+T(3,9)-T(4,9)  ! Summation of Eq. [30] in HHS73
 !        WRITE(*,*) "n_max, sum1, sum2 = ", i,sum1,sum2
-         rel  = max(dabs((sum1-sum1o))/dabs(sum1),dabs((sum2-sum2o))/dabs(sum2))
+         rel  = MAX(DABS((sum1-sum1o))/DABS(sum1),DABS((sum2-sum2o))/DABS(sum2))
          sum1o= sum1
          sum2o= sum2
             i = i + 1
       ENDDO
 
-      F1 = -dsinh(al)/3d0 *      sum1  ! normalized by -6.pi.mu.a1.V1
-      F2 = -dsinh(be)/3d0 * dabs(sum2) ! normalized by -6.pi.mu.a2.V2
+      F1 = -DSINH(al)/3d0 *      sum1  ! normalized by —6πμa₁V₁
+      F2 = -DSINH(be)/3d0 * DABS(sum2) ! normalized by —6πμa₂V₂
 
 !     fluid particle normalization:
       F1 = F1*(lama+1d0)/(lama+2d0/3d0)
@@ -1523,13 +1533,13 @@
 ! === F U N C T I O N S :  H H S (1973)  A P P E N D I X  B ============
       DOUBLE PRECISION FUNCTION f(n,x)
       DOUBLE PRECISION :: n,x
-      f = (2d0*n-1d0)*dexp(-(n+3d0/2d0)*x)-(2d0*n+3d0)*dexp(-(n-1d0/2d0)*x)
+      f = (2d0*n-1d0)*DEXP(-(n+3d0/2d0)*x)-(2d0*n+3d0)*DEXP(-(n-1d0/2d0)*x)
       RETURN
       END
 
       DOUBLE PRECISION FUNCTION g(n,x)
       DOUBLE PRECISION :: n,x
-      g = (2d0*n+3d0)*dexp(-(n+3d0/2d0)*x)-(2d0*n-1d0)*dexp(-(n-1d0/2d0)*x)
+      g = (2d0*n+3d0)*DEXP(-(n+3d0/2d0)*x)-(2d0*n-1d0)*DEXP(-(n-1d0/2d0)*x)
       RETURN
       END
 ! ======================================================================
@@ -1537,121 +1547,117 @@
 ! === Reed & Morrison (1974) ===========================================
 !     Reed, L. D., & Morrison Jr, F. A. (1974). Particle interactions in viscous flow at small values of Knudsen number. Journal of Aerosol Science, 5(2), 175-189.
       SUBROUTINE RM74(opp,Kn,xi1,xi2,F1,F2,acu)
-      implicit DOUBLE PRECISION (a-h,k-z)
-      DOUBLE PRECISION, allocatable, dimension (:,:) :: T
-      logical opp
+      IMPLICIT DOUBLE PRECISION (A-H,K-Z)
+      DOUBLE PRECISION, ALLOCATABLE, DIMENSION (:,:) :: T
+      LOGICAL opp
 
       Cla= 1.5d0 * Kn ! ASSUMED !
       F1o= 0d0
       F2o= 0d0
-      in = 50
-1     ALLOCATE ( T(4*in,4*in+1) )
+      iN = 50
+1     ALLOCATE ( T(4*iN,14) )
        T = 0d0
 
-      DO i = 1, in
-         n = dble(i)
+      DO i = 1, iN
+         n = DBLE(i)
          k = n*(n+1d0)/(2d0*n-1d0)/(2d0*n+3d0)
 
-         ! (19): xi1
-         T(4*i-3,4*i-3) = dcosh((n-05d-1)*xi1)
-         T(4*i-3,4*i-2) = dsinh((n-05d-1)*xi1)
-         T(4*i-3,4*i-1) = dcosh((n+15d-1)*xi1)
-         T(4*i-3,4*i  ) = dsinh((n+15d-1)*xi1)
-         T(4*i-3,4*in+1)=-k*( (2d0*n+3d0)*dexp(-(n-05d-1)*xi1) - (2d0*n-1d0)*dexp(-(n+15d-1)*xi1) )
+         ! (19): ξ1
+         T(4*i-3,08) = DCOSH((n-05d-1)*xi1)
+         T(4*i-3,09) = DSINH((n-05d-1)*xi1)
+         T(4*i-3,10) = DCOSH((n+15d-1)*xi1)
+         T(4*i-3,11) = DSINH((n+15d-1)*xi1)
+         T(4*i-3,14)=-k*( (2d0*n+3d0)*DEXP(-(n-05d-1)*xi1) - (2d0*n-1d0)*DEXP(-(n+15d-1)*xi1) )
          ! the factors "Uc^2/sq(2)" are ignored due to (22) & (23)
-         ! (19): xi2
-         T(4*i-2,4*i-3) = dcosh((n-05d-1)*xi2)
-         T(4*i-2,4*i-2) = dsinh((n-05d-1)*xi2)
-         T(4*i-2,4*i-1) = dcosh((n+15d-1)*xi2)
-         T(4*i-2,4*i  ) = dsinh((n+15d-1)*xi2)
+         ! (19): ξ2
+         T(4*i-2,07) = DCOSH((n-05d-1)*xi2)
+         T(4*i-2,08) = DSINH((n-05d-1)*xi2)
+         T(4*i-2,09) = DCOSH((n+15d-1)*xi2)
+         T(4*i-2,10) = DSINH((n+15d-1)*xi2)
          IF (opp) THEN
-         T(4*i-2,4*in+1)=+k*( (2d0*n+3d0)*dexp((n-05d-1)*xi2) - (2d0*n-1d0)*dexp((n+15d-1)*xi2) )
+         T(4*i-2,14) =+k*( (2d0*n+3d0)*DEXP((n-05d-1)*xi2) - (2d0*n-1d0)*DEXP((n+15d-1)*xi2) )
          ELSE
-         T(4*i-2,4*in+1)=-k*( (2d0*n+3d0)*dexp((n-05d-1)*xi2) - (2d0*n-1d0)*dexp((n+15d-1)*xi2) )
+         T(4*i-2,14) =-k*( (2d0*n+3d0)*DEXP((n-05d-1)*xi2) - (2d0*n-1d0)*DEXP((n+15d-1)*xi2) )
          ENDIF
          
-         ! (20): xi1
+         ! (20): ξ1
          IF (i.gt.1) THEN
-         T(4*i-1,4*i-7) =-Cla/dsinh(xi1)*(n+1d0)/(2d0*n-1d0)*(2d0*n-3d0)**2*dcosh((n-15d-1)*xi1)
-         T(4*i-1,4*i-6) =-Cla/dsinh(xi1)*(n+1d0)/(2d0*n-1d0)*(2d0*n-3d0)**2*dsinh((n-15d-1)*xi1)
-         T(4*i-1,4*i-5) =-Cla/dsinh(xi1)*(n+1d0)/(2d0*n-1d0)*(2d0*n+1d0)**2*dcosh((n+05d-1)*xi1)
-         T(4*i-1,4*i-4) =-Cla/dsinh(xi1)*(n+1d0)/(2d0*n-1d0)*(2d0*n+1d0)**2*dsinh((n+05d-1)*xi1)
+         T(4*i-1,02) =-Cla/DSINH(xi1)*(n+1d0)/(2d0*n-1d0)*(2d0*n-3d0)**2*DCOSH((n-15d-1)*xi1)
+         T(4*i-1,03) =-Cla/DSINH(xi1)*(n+1d0)/(2d0*n-1d0)*(2d0*n-3d0)**2*DSINH((n-15d-1)*xi1)
+         T(4*i-1,04) =-Cla/DSINH(xi1)*(n+1d0)/(2d0*n-1d0)*(2d0*n+1d0)**2*DCOSH((n+05d-1)*xi1)
+         T(4*i-1,05) =-Cla/DSINH(xi1)*(n+1d0)/(2d0*n-1d0)*(2d0*n+1d0)**2*DSINH((n+05d-1)*xi1)
          ENDIF
-         T(4*i-1,4*i-3) = 2d0*(2d0*n-1d0)*dsinh((n-05d-1)*xi1) + Cla/dtanh(xi1)*(2d0*n-1d0)**2*dcosh((n-05d-1)*xi1)
-         T(4*i-1,4*i-2) = 2d0*(2d0*n-1d0)*dcosh((n-05d-1)*xi1) + Cla/dtanh(xi1)*(2d0*n-1d0)**2*dsinh((n-05d-1)*xi1)
-         T(4*i-1,4*i-1) = 2d0*(2d0*n+3d0)*dsinh((n+15d-1)*xi1) + Cla/dtanh(xi1)*(2d0*n+3d0)**2*dcosh((n+15d-1)*xi1)
-         T(4*i-1,4*i  ) = 2d0*(2d0*n+3d0)*dcosh((n+15d-1)*xi1) + Cla/dtanh(xi1)*(2d0*n+3d0)**2*dsinh((n+15d-1)*xi1)
-         IF (i.lt.in) THEN
-         T(4*i-1,4*i+1) =-Cla/dsinh(xi1)*n/(2d0*n+3d0)*(2d0*n+1d0)**2*dcosh((n+05d-1)*xi1)
-         T(4*i-1,4*i+2) =-Cla/dsinh(xi1)*n/(2d0*n+3d0)*(2d0*n+1d0)**2*dsinh((n+05d-1)*xi1)
-         T(4*i-1,4*i+3) =-Cla/dsinh(xi1)*n/(2d0*n+3d0)*(2d0*n+5d0)**2*dcosh((n+25d-1)*xi1)
-         T(4*i-1,4*i+4) =-Cla/dsinh(xi1)*n/(2d0*n+3d0)*(2d0*n+5d0)**2*dsinh((n+25d-1)*xi1)
+         T(4*i-1,06) = 2d0*(2d0*n-1d0)*DSINH((n-05d-1)*xi1) + Cla/DTANH(xi1)*(2d0*n-1d0)**2*DCOSH((n-05d-1)*xi1)
+         T(4*i-1,07) = 2d0*(2d0*n-1d0)*DCOSH((n-05d-1)*xi1) + Cla/DTANH(xi1)*(2d0*n-1d0)**2*DSINH((n-05d-1)*xi1)
+         T(4*i-1,08) = 2d0*(2d0*n+3d0)*DSINH((n+15d-1)*xi1) + Cla/DTANH(xi1)*(2d0*n+3d0)**2*DCOSH((n+15d-1)*xi1)
+         T(4*i-1,09) = 2d0*(2d0*n+3d0)*DCOSH((n+15d-1)*xi1) + Cla/DTANH(xi1)*(2d0*n+3d0)**2*DSINH((n+15d-1)*xi1)
+         IF (i.lt.iN) THEN
+         T(4*i-1,10) =-Cla/DSINH(xi1)*n/(2d0*n+3d0)*(2d0*n+1d0)**2*DCOSH((n+05d-1)*xi1)
+         T(4*i-1,11) =-Cla/DSINH(xi1)*n/(2d0*n+3d0)*(2d0*n+1d0)**2*DSINH((n+05d-1)*xi1)
+         T(4*i-1,12) =-Cla/DSINH(xi1)*n/(2d0*n+3d0)*(2d0*n+5d0)**2*DCOSH((n+25d-1)*xi1)
+         T(4*i-1,13) =-Cla/DSINH(xi1)*n/(2d0*n+3d0)*(2d0*n+5d0)**2*DSINH((n+25d-1)*xi1)
          ENDIF
-         T(4*i-1,4*in+1)=-Cla/dsinh(xi1)*n*(n+1d0)*( dcosh(xi1)* &
-         ((2d0*n-1d0)*dexp(-(n-05d-1)*xi1)-(2d0*n+3d0)*dexp(-(n+15d-1)*xi1)) &
-         -(n-1d0)/(2d0*n-1d0)*((2d0*n-3d0)*dexp(-(n-15d-1)*xi1)-(2d0*n+1d0)*dexp(-(n+05d-1)*xi1)) &
-         -(n+2d0)/(2d0*n+3d0)*((2d0*n+1d0)*dexp(-(n+05d-1)*xi1)-(2d0*n+5d0)*dexp(-(n+25d-1)*xi1)))&
-         +2d0*n*(n+1d0)      *            (dexp(-(n-05d-1)*xi1)      -      dexp(-(n+15d-1)*xi1) )
-         ! (20): xi2
+         T(4*i-1,14) =-Cla/DSINH(xi1)*n*(n+1d0)*( DCOSH(xi1)* &
+         ((2d0*n-1d0)*DEXP(-(n-05d-1)*xi1)-(2d0*n+3d0)*DEXP(-(n+15d-1)*xi1)) &
+         -(n-1d0)/(2d0*n-1d0)*((2d0*n-3d0)*DEXP(-(n-15d-1)*xi1)-(2d0*n+1d0)*DEXP(-(n+05d-1)*xi1)) &
+         -(n+2d0)/(2d0*n+3d0)*((2d0*n+1d0)*DEXP(-(n+05d-1)*xi1)-(2d0*n+5d0)*DEXP(-(n+25d-1)*xi1)))&
+         +2d0*n*(n+1d0)      *            (DEXP(-(n-05d-1)*xi1)      -      DEXP(-(n+15d-1)*xi1) )
+         ! (20): ξ2
          IF (i.gt.1) THEN
-         T(4*i  ,4*i-7) =+Cla/dsinh(xi1)*(n+1d0)/(2d0*n-1d0)*(2d0*n-3d0)**2*dcosh((n-15d-1)*xi2)
-         T(4*i  ,4*i-6) =+Cla/dsinh(xi1)*(n+1d0)/(2d0*n-1d0)*(2d0*n-3d0)**2*dsinh((n-15d-1)*xi2)
-         T(4*i  ,4*i-5) =+Cla/dsinh(xi1)*(n+1d0)/(2d0*n-1d0)*(2d0*n+1d0)**2*dcosh((n+05d-1)*xi2)
-         T(4*i  ,4*i-4) =+Cla/dsinh(xi1)*(n+1d0)/(2d0*n-1d0)*(2d0*n+1d0)**2*dsinh((n+05d-1)*xi2)
+         T(4*i  ,01) =+Cla/DSINH(xi1)*(n+1d0)/(2d0*n-1d0)*(2d0*n-3d0)**2*DCOSH((n-15d-1)*xi2)
+         T(4*i  ,02) =+Cla/DSINH(xi1)*(n+1d0)/(2d0*n-1d0)*(2d0*n-3d0)**2*DSINH((n-15d-1)*xi2)
+         T(4*i  ,03) =+Cla/DSINH(xi1)*(n+1d0)/(2d0*n-1d0)*(2d0*n+1d0)**2*DCOSH((n+05d-1)*xi2)
+         T(4*i  ,04) =+Cla/DSINH(xi1)*(n+1d0)/(2d0*n-1d0)*(2d0*n+1d0)**2*DSINH((n+05d-1)*xi2)
          ENDIF
-         T(4*i  ,4*i-3) = 2d0*(2d0*n-1d0)*dsinh((n-05d-1)*xi2) - Cla*dcosh(xi2)/dsinh(xi1)*(2d0*n-1d0)**2*dcosh((n-05d-1)*xi2)
-         T(4*i  ,4*i-2) = 2d0*(2d0*n-1d0)*dcosh((n-05d-1)*xi2) - Cla*dcosh(xi2)/dsinh(xi1)*(2d0*n-1d0)**2*dsinh((n-05d-1)*xi2)
-         T(4*i  ,4*i-1) = 2d0*(2d0*n+3d0)*dsinh((n+15d-1)*xi2) - Cla*dcosh(xi2)/dsinh(xi1)*(2d0*n+3d0)**2*dcosh((n+15d-1)*xi2)
-         T(4*i  ,4*i  ) = 2d0*(2d0*n+3d0)*dcosh((n+15d-1)*xi2) - Cla*dcosh(xi2)/dsinh(xi1)*(2d0*n+3d0)**2*dsinh((n+15d-1)*xi2)
-         IF (i.lt.in) THEN
-         T(4*i  ,4*i+1) =+Cla/dsinh(xi1)*n/(2d0*n+3d0)*(2d0*n+1d0)**2*dcosh((n+05d-1)*xi2)
-         T(4*i  ,4*i+2) =+Cla/dsinh(xi1)*n/(2d0*n+3d0)*(2d0*n+1d0)**2*dsinh((n+05d-1)*xi2)
-         T(4*i  ,4*i+3) =+Cla/dsinh(xi1)*n/(2d0*n+3d0)*(2d0*n+5d0)**2*dcosh((n+25d-1)*xi2)
-         T(4*i  ,4*i+4) =+Cla/dsinh(xi1)*n/(2d0*n+3d0)*(2d0*n+5d0)**2*dsinh((n+25d-1)*xi2)
+         T(4*i  ,05) = 2d0*(2d0*n-1d0)*DSINH((n-05d-1)*xi2) - Cla*DCOSH(xi2)/DSINH(xi1)*(2d0*n-1d0)**2*DCOSH((n-05d-1)*xi2)
+         T(4*i  ,06) = 2d0*(2d0*n-1d0)*DCOSH((n-05d-1)*xi2) - Cla*DCOSH(xi2)/DSINH(xi1)*(2d0*n-1d0)**2*DSINH((n-05d-1)*xi2)
+         T(4*i  ,07) = 2d0*(2d0*n+3d0)*DSINH((n+15d-1)*xi2) - Cla*DCOSH(xi2)/DSINH(xi1)*(2d0*n+3d0)**2*DCOSH((n+15d-1)*xi2)
+         T(4*i  ,08) = 2d0*(2d0*n+3d0)*DCOSH((n+15d-1)*xi2) - Cla*DCOSH(xi2)/DSINH(xi1)*(2d0*n+3d0)**2*DSINH((n+15d-1)*xi2)
+         IF (i.lt.iN) THEN
+         T(4*i  ,09) =+Cla/DSINH(xi1)*n/(2d0*n+3d0)*(2d0*n+1d0)**2*DCOSH((n+05d-1)*xi2)
+         T(4*i  ,10) =+Cla/DSINH(xi1)*n/(2d0*n+3d0)*(2d0*n+1d0)**2*DSINH((n+05d-1)*xi2)
+         T(4*i  ,11) =+Cla/DSINH(xi1)*n/(2d0*n+3d0)*(2d0*n+5d0)**2*DCOSH((n+25d-1)*xi2)
+         T(4*i  ,12) =+Cla/DSINH(xi1)*n/(2d0*n+3d0)*(2d0*n+5d0)**2*DSINH((n+25d-1)*xi2)
          ENDIF
          IF (opp) THEN
-         T(4*i  ,4*in+1)=-Cla/dsinh(xi1)*n*(n+1d0)*( dcosh(xi2)* &
-         ((2d0*n-1d0)*dexp((n-05d-1)*xi2)-(2d0*n+3d0)*dexp((n+15d-1)*xi2)) &
-         -(n-1d0)/(2d0*n-1d0)*((2d0*n-3d0)*dexp((n-15d-1)*xi2)-(2d0*n+1d0)*dexp((n+05d-1)*xi2)) &
-         -(n+2d0)/(2d0*n+3d0)*((2d0*n+1d0)*dexp((n+05d-1)*xi2)-(2d0*n+5d0)*dexp((n+25d-1)*xi2)))&
-         +2d0*n*(n+1d0)      *            (dexp((n-05d-1)*xi2)      -      dexp((n+15d-1)*xi2) )
+         T(4*i  ,14) =-Cla/DSINH(xi1)*n*(n+1d0)*( DCOSH(xi2)* &
+         ((2d0*n-1d0)*DEXP((n-05d-1)*xi2)-(2d0*n+3d0)*DEXP((n+15d-1)*xi2)) &
+         -(n-1d0)/(2d0*n-1d0)*((2d0*n-3d0)*DEXP((n-15d-1)*xi2)-(2d0*n+1d0)*DEXP((n+05d-1)*xi2)) &
+         -(n+2d0)/(2d0*n+3d0)*((2d0*n+1d0)*DEXP((n+05d-1)*xi2)-(2d0*n+5d0)*DEXP((n+25d-1)*xi2)))&
+         +2d0*n*(n+1d0)      *            (DEXP((n-05d-1)*xi2)      -      DEXP((n+15d-1)*xi2) )
          ELSE
-         T(4*i  ,4*in+1)=+Cla/dsinh(xi1)*n*(n+1d0)*( dcosh(xi2)* &
-         ((2d0*n-1d0)*dexp((n-05d-1)*xi2)-(2d0*n+3d0)*dexp((n+15d-1)*xi2)) &
-         -(n-1d0)/(2d0*n-1d0)*((2d0*n-3d0)*dexp((n-15d-1)*xi2)-(2d0*n+1d0)*dexp((n+05d-1)*xi2)) &
-         -(n+2d0)/(2d0*n+3d0)*((2d0*n+1d0)*dexp((n+05d-1)*xi2)-(2d0*n+5d0)*dexp((n+25d-1)*xi2)))&
-         -2d0*n*(n+1d0)      *            (dexp((n-05d-1)*xi2)      -      dexp((n+15d-1)*xi2) )
+         T(4*i  ,14) =+Cla/DSINH(xi1)*n*(n+1d0)*( DCOSH(xi2)* &
+         ((2d0*n-1d0)*DEXP((n-05d-1)*xi2)-(2d0*n+3d0)*DEXP((n+15d-1)*xi2)) &
+         -(n-1d0)/(2d0*n-1d0)*((2d0*n-3d0)*DEXP((n-15d-1)*xi2)-(2d0*n+1d0)*DEXP((n+05d-1)*xi2)) &
+         -(n+2d0)/(2d0*n+3d0)*((2d0*n+1d0)*DEXP((n+05d-1)*xi2)-(2d0*n+5d0)*DEXP((n+25d-1)*xi2)))&
+         -2d0*n*(n+1d0)      *            (DEXP((n-05d-1)*xi2)      -      DEXP((n+15d-1)*xi2) )
          ENDIF
       ENDDO
 
-!     CALL GAUSS(4*in,4*in+1,T)
-      CALL GAUSSB(4*in,7,5,T)
+      CALL THOMAS(4*iN,7,5,T)
 
-      F1 = SUM(T(:,4*in+1))
+      F1 = SUM(T(:,14))
       F2 = 0d0
-      DO i = 1, in
-         an = T(4*i-3,4*in+1)
-         bn = T(4*i-2,4*in+1)
-         cn = T(4*i-1,4*in+1)
-         dn = T(4*i  ,4*in+1)
+      DO i = 1, iN
+         an = T(4*i-3,14)
+         bn = T(4*i-2,14)
+         cn = T(4*i-1,14)
+         dn = T(4*i  ,14)
          F2 = F2 + an - bn + cn - dn
       ENDDO
+      DEALLOCATE ( T )
 
-      rel = max(dabs(F1-F1o)/dabs(F1),dabs(F2-F2o)/dabs(F2))
-      IF ( rel .GT. acu .AND. iN .LT. 1500 ) THEN
-          iN = int(1.5 * float(iN)) ! 20% increase
+      rel = MAX(DABS(F1-F1o)/DABS(F1),DABS(F2-F2o)/DABS(F2))
+      IF ( rel .GT. acu ) THEN
+          iN = INT(1.5 * FLOAT(iN)) ! 50% increase
          F1o = F1
          F2o = F2
-!        WRITE(*,*) "n_max, suma, sumb = ", iN,F1,F2,rel
-         DEALLOCATE ( T )
+!        WRITE(*,*) 'n_max, F1, F2, rel = ', iN,F1,F2,rel
          GOTO 1
-      ELSE
-!        WRITE(*,*) "n_max, suma, sumb = ", iN,F1,F2,rel
-         DEALLOCATE ( T )
       ENDIF
 
-      F1 = dsinh(xi1)/3d0 * (1d0+3d0*Cla)/(1d0+2d0*Cla) * dabs(F1)  ! (22)
-      F2 =-dsinh(xi2)/3d0 * (1d0+3d0*Cla)/(1d0+2d0*Cla) * dabs(F2)  ! (23)
+      F1 = DSINH(xi1)/3d0 * (1d0+3d0*Cla)/(1d0+2d0*Cla) * DABS(F1)  ! (22)
+      F2 =-DSINH(xi2)/3d0 * (1d0+3d0*Cla)/(1d0+2d0*Cla) * DABS(F2)  ! (23)
 
       RETURN
       END SUBROUTINE
@@ -1662,29 +1668,29 @@
 !     Beshkov, V. N., Radoev, B. P., & Ivanov, I. B. (1978). Slow motion of two droplets and a droplet towards a fluid or solid interface. International Journal of Multiphase Flow, 4(5-6), 563-570.
 !     Kim, S., & Karrila, S. J. (2013). Microhydrodynamics: principles and selected applications. Courier Corporation.      
       SUBROUTINE BRI78(mur,al,F1)
-      implicit DOUBLE PRECISION (a-h,k-z)
+      IMPLICIT DOUBLE PRECISION (A-H,K-Z)
 
       sumo = 0d0
       DO i = 1, 100000
-         n = dble(i)
+         n = DBLE(i)
         Kn = n*(n+1d0)/(2d0*n-1d0)/(2d0*n+3d0) ! two typos in Beshkov et al.
 
-        N0 = 2d0*(2d0*n+1d0)*dsinh(2*al)+4d0*dcosh(2*al)-4d0*dexp(-(2d0*n+1d0)*al)
-        N1 = (2d0*n+1d0)**2*dcosh(2*al)+2d0*(2d0*n+1d0)*dsinh(2*al)-(2d0*n-1d0)*(2d0*n+3d0)+4d0*dexp(-(2d0*n+1d0)*al) ! typo in (9.39) of "Microhydrodynamics" by Kim & Karrila
-        D0 = 4d0*dsinh((n-1d0/2d0)*al)*dsinh((n+3d0/2d0)*al)
-        D1 = 2d0*dsinh((2d0*n+1d0)*al)-(2d0*n+1d0)*dsinh(2*al) ! next typo in Beshkov et al.
+        N0 = 2d0*(2d0*n+1d0)*DSINH(2*al)+4d0*DCOSH(2*al)-4d0*DEXP(-(2d0*n+1d0)*al)
+        N1 = (2d0*n+1d0)**2*DCOSH(2*al)+2d0*(2d0*n+1d0)*DSINH(2*al)-(2d0*n-1d0)*(2d0*n+3d0)+4d0*DEXP(-(2d0*n+1d0)*al) ! typo in (9.39) of "Microhydrodynamics" by Kim & Karrila
+        D0 = 4d0*DSINH((n-1d0/2d0)*al)*DSINH((n+3d0/2d0)*al)
+        D1 = 2d0*DSINH((2d0*n+1d0)*al)-(2d0*n+1d0)*DSINH(2*al) ! next typo in Beshkov et al.
 
       suma = sumo + Kn*( N0 + mur * N1 ) / ( D0 + mur * D1 )
 
-         criterion = dabs((suma-sumo))/dabs(suma)
+         criterion = DABS((suma-sumo))/DABS(suma)
          IF ( criterion .lt. 1d-10 ) THEN
-!           write(*,*) "n_max, sum = ", i,suma
+!           WRITE(*,*) "n_max, sum = ", i,suma
             GOTO 1
          ENDIF
          sumo = suma
       ENDDO
 
-1     F1 = 2d0/3d0*dsinh(al) * suma  ! normalized by -6.pi.mu.a1.V1
+1     F1 = 2d0/3d0*DSINH(al) * suma  ! normalized by —6πμa₁V₁
 
       RETURN
       END SUBROUTINE
@@ -1694,7 +1700,7 @@
 !     Jeffrey, D. J., & Onishi, Y. (1984). Calculation of the resistance and mobility functions for two unequal rigid spheres in low-Reynolds-number flow. Journal of Fluid Mechanics, 139, 261-290.
 !     Townsend, A. K. (2018). Generating, from scratch, the near-field asymptotic forms of scalar resistance functions for two unequal rigid spheres in low-Reynolds-number flow. arXiv preprint arXiv:1802.08226.      
       SUBROUTINE JO84XA(opp,ncl,s,alam,F1,F2,acu)
-      IMPLICIT DOUBLE PRECISION (a-h,o-z)
+      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
       DOUBLE PRECISION, ALLOCATABLE, DIMENSION(:) :: fm1,fm2
       DOUBLE PRECISION Kn, lmbd0
       LOGICAL opp, ncl
@@ -1755,10 +1761,10 @@
       ENDDO
       DEALLOCATE ( fm1, fm2 )
 
-      XA11 = XA11 + g11/sc - g21*dlog(sc)-g31*sc*dlog(sc)+1.d0-g11
-      XA22 = XA22 + g12/sc - g22*dlog(sc)-g32*sc*dlog(sc)+1.d0-g12
-      XA12 = XA12 + 2.d0/s*g11/sc + g21*dlog(sd)+ g31*sc*dlog(sd) + 4.d0*g31/s
-      XA21 = XA21 + 2.d0/s*g12/sc + g22*dlog(sd)+ g32*sc*dlog(sd) + 4.d0*g32/s
+      XA11 = XA11 + g11/sc - g21*DLOG(sc)-g31*sc*DLOG(sc)+1.d0-g11
+      XA22 = XA22 + g12/sc - g22*DLOG(sc)-g32*sc*DLOG(sc)+1.d0-g12
+      XA12 = XA12 + 2.d0/s*g11/sc + g21*DLOG(sd)+ g31*sc*DLOG(sd) + 4.d0*g31/s
+      XA21 = XA21 + 2.d0/s*g12/sc + g22*DLOG(sd)+ g32*sc*DLOG(sd) + 4.d0*g32/s
       XA12 = XA12 *-2.d0/(1.d0+alam)
       XA21 = XA21 *-2.d0/(1.d0+rlam)
 
@@ -1778,7 +1784,7 @@
          XA12 = XA12 + 2d0 * g11/(1d0+alam) * ( 1d0/(s-2d0) - f_nc(dlt0)/Kn )
          XA21 = XA21 + 2d0 * g12/(1d0+rlam) * ( 1d0/(s-2d0) - f_nc(dlt0)/Kn )
       ENDIF
-!     WRITE(*,*)"XAxx",XA11,XA12,XA21,XA22
+      WRITE(*,*)"XAxx",XA11,XA12,XA21,XA22
 
       IF (opp) THEN
          F1 = XA11 - (1d0+alam)/2d0 * XA12
@@ -1788,9 +1794,9 @@
          F2 = XA22 + (1d0+rlam)/2d0 * XA21
       ENDIF
 
-      rel = max(dabs(F1-F1o)/dabs(F1),dabs(F2-F2o)/dabs(F2))
+      rel = MAX(DABS(F1-F1o)/DABS(F1),DABS(F2-F2o)/DABS(F2))
 !     IF ( rel .GT. acu ) THEN
-         n0 = int(1.1 * float(n0)) ! 10% increase
+         n0 = INT(1.1 * FLOAT(n0)) ! 10% increase
          F1o= F1
          F2o= F2
 !        WRITE(*,*) "n_max, F1, F2 = ", n0, F1, F2, rel
@@ -1801,17 +1807,17 @@
 
       AX11 = AX11 + 1d0 - g11/4d0
       AX22 = AX22 + 1d0 - g12/4d0
-      AX12 = AX12 + g11/4d0 + 2d0*g21*dlog(2d0) + 2d0*g31    ! typo in T19
-      AX21 = AX21 + g12/4d0 + 2d0*g22*dlog(2d0) + 2d0*g32    ! typo in T19
+      AX12 = AX12 + g11/4d0 + 2d0*g21*DLOG(2d0) + 2d0*g31    ! typo in T19
+      AX21 = AX21 + g12/4d0 + 2d0*g22*DLOG(2d0) + 2d0*g32    ! typo in T19
       AX12 =-AX12*2.d0/(1.d0+alam)
       AX21 =-AX21*2.d0/(1.d0+rlam)
 !     WRITE (*,*) AX11,AX12,AX21,AX22
 
 !     Nearly touching spheres (3.17) & (3.18)
-      XA11=g11/xi+g21*dlog(1d0/xi)+g31*xi*dlog(1d0/xi)+AX11
-      XA22=g12/xi+g22*dlog(1d0/xi)+g32*xi*dlog(1d0/xi)+AX22
-      XA12=g11/xi+g21*dlog(1d0/xi)+g31*xi*dlog(1d0/xi)-(1.d0+alam)/2d0*AX12
-      XA21=g12/xi+g22*dlog(1d0/xi)+g32*xi*dlog(1d0/xi)-(1.d0+rlam)/2d0*AX21
+      XA11=g11/xi+g21*DLOG(1d0/xi)+g31*xi*DLOG(1d0/xi)+AX11
+      XA22=g12/xi+g22*DLOG(1d0/xi)+g32*xi*DLOG(1d0/xi)+AX22
+      XA12=g11/xi+g21*DLOG(1d0/xi)+g31*xi*DLOG(1d0/xi)-(1.d0+alam)/2d0*AX12
+      XA21=g12/xi+g22*DLOG(1d0/xi)+g32*xi*DLOG(1d0/xi)-(1.d0+rlam)/2d0*AX21
 !     XA12=-XA12                                     ! T19
       XA12=-XA12*2.d0/(1.d0+alam)                    ! JO84
 !     XA21=-XA21                                     ! T19
@@ -1825,7 +1831,7 @@
 ! ======================================================================
 
       SUBROUTINE coeffXA(n0,alam,rlam,fm1,fm2)
-      IMPLICIT DOUBLE PRECISION (a-h,o-z)
+      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
 !     DOUBLE PRECISION P(0:2307277),V(0:2307277)
 !     DOUBLE PRECISION FAC1(151,151)
 !     DOUBLE PRECISION P(0:17160960),V(0:17160960)
@@ -1953,7 +1959,7 @@
       END FUNCTION
 ! ================      
 !     How, M. L. S., Koch, D. L., & Collins, L. R. (2021). Non-continuum tangential lubrication gas flow between two spheres. Journal of Fluid Mechanics, 920.
-      FUNCTION f_nc2 ( dlt0 )
+      FUNCTION f_nc2 ( dlt0 ) ! f_nc works better
       DOUBLE PRECISION :: pi, k1, t0, dlt0, f_nc2
 
       pi = 4d0 * DATAN(1d0)
@@ -1983,7 +1989,7 @@
 ! === Jeffrey & Onishi (1984) - YA =====================================
 !     Jeffrey, D. J., & Onishi, Y. (1984). Calculation of the resistance and mobility functions for two unequal rigid spheres in low-Reynolds-number flow. Journal of Fluid Mechanics, 139, 261-290.
       SUBROUTINE JO84YA(opp,s,alam,F1,F2,acu)
-      IMPLICIT DOUBLE PRECISION (a-h,o-z)
+      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
       DOUBLE PRECISION, ALLOCATABLE, DIMENSION(:) :: fm1,fm2
       LOGICAL opp
 
@@ -2018,8 +2024,8 @@
          m1 = m - 2 
          IF(m.EQ.2) m1 = -2 
 
-         dm1=dble(m1)
-         dm=dble(m)
+         dm1=DBLE(m1)
+         dm=DBLE(m)
 
          IF (MOD(m,2).EQ.0) THEN
           ccc = fm1(m)/(2.d0+2.d0*alam)**m - g21*2.d0/dm + 4.d0*g31/dm/dm1
@@ -2040,10 +2046,10 @@
       ENDDO
       DEALLOCATE ( fm1, fm2 )
 
-      YA11 = YA11 - g21*dlog(sc) - g31*sc*dlog(sc) + 1.d0
-      YA22 = YA22 - g22*dlog(sc) - g32*sc*dlog(sc) + 1.d0 
-      YA12 = YA12 + g21*dlog(sd) + g31*sc*dlog(sd) + 4.d0*g31/s
-      YA21 = YA21 + g22*dlog(sd) + g32*sc*dlog(sd) + 4.d0*g32/s
+      YA11 = YA11 - g21*DLOG(sc) - g31*sc*DLOG(sc) + 1.d0
+      YA22 = YA22 - g22*DLOG(sc) - g32*sc*DLOG(sc) + 1.d0 
+      YA12 = YA12 + g21*DLOG(sd) + g31*sc*DLOG(sd) + 4.d0*g31/s
+      YA21 = YA21 + g22*DLOG(sd) + g32*sc*DLOG(sd) + 4.d0*g32/s
       YA12 =-YA12 * 2d0/(1d0+alam)
       YA21 =-YA21 * 2d0/(1d0+rlam)
 
@@ -2055,19 +2061,19 @@
          F2 = YA22 + (1d0+rlam)/2d0 * YA21
       ENDIF
 
-      rel = max(dabs(F1-F1o)/dabs(F1),dabs(F2-F2o)/dabs(F2))
-      IF ( rel .GT. acu ) THEN
-         n0 = int(1.1 * float(n0)) ! 10% increase
+      rel = MAX(DABS(F1-F1o)/DABS(F1),DABS(F2-F2o)/DABS(F2))
+!     IF ( rel .GT. acu ) THEN
+         n0 = INT(1.1 * FLOAT(n0)) ! 10% increase
          F1o= F1
          F2o= F2
 !        WRITE(*,*) "n_max, F1, F2 = ", n0, F1, F2, rel
-         GOTO 1
-      ENDIF
+!        GOTO 1
+!     ENDIF
 
       AY11 = AY11 + 1d0
       AY22 = AY22 + 1d0
-      AY12 = AY12 + 2d0*g21*dlog(2d0) + 2d0*g31
-      AY21 = AY21 + 2d0*g22*dlog(2d0) + 2d0*g32
+      AY12 = AY12 + 2d0*g21*DLOG(2d0) + 2d0*g31
+      AY21 = AY21 + 2d0*g22*DLOG(2d0) + 2d0*g32
       AY12 =-AY12*2.d0/(1.d0+alam)
       AY21 =-AY21*2.d0/(1.d0+rlam)
 !     WRITE (*,*) AY11,AY12,AY21,AY22
@@ -2077,7 +2083,7 @@
           
 ! ======================================================================
       SUBROUTINE coeffYA(n0,alam,rlam,fm1,fm2)
-      IMPLICIT DOUBLE PRECISION (a-h,o-z)
+      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
       DOUBLE PRECISION fm1(0:n0),fm2(0:n0)
 !     DOUBLE PRECISION P(0:2307277)
 !     DOUBLE PRECISION V(0:2307277)
@@ -2192,7 +2198,7 @@
 !     Jeffrey, D. J., & Onishi, Y. (1984). Calculation of the resistance and mobility functions for two unequal rigid spheres in low-Reynolds-number flow. Journal of Fluid Mechanics, 139, 261-290.
 !     Townsend, A. K. (2018). Generating, from scratch, the near-field asymptotic forms of scalar resistance functions for two unequal rigid spheres in low-Reynolds-number flow. arXiv preprint arXiv:1802.08226.
       SUBROUTINE JO84YB(opp,s,alam,F1,F2,T1,T2,acu)
-      IMPLICIT DOUBLE PRECISION (a-h,o-z)
+      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
       DOUBLE PRECISION, ALLOCATABLE, DIMENSION(:) :: fm1,fm2
       LOGICAL opp
 
@@ -2227,8 +2233,8 @@
          m1 = m - 2 
          IF(m.EQ.2) m1 = -2 
 
-         dm1=dble(m1)
-         dm=dble(m)
+         dm1=DBLE(m1)
+         dm=DBLE(m)
 
          IF(MOD(m,2).EQ.1) THEN
           ccc = fm1(m)/(2.d0+2.d0*alam)**m - g21*2.d0/dm + 4.d0*g31/dm/dm1
@@ -2249,10 +2255,10 @@
       ENDDO
       DEALLOCATE ( fm1, fm2 )
 
-      YB11 = YB11 + g21*dlog(sd) + g31*sc*dlog(sd) + 4.d0*g31/s
-      YB22 = YB22 + g22*dlog(sd) + g32*sc*dlog(sd) + 4.d0*g32/s
-      YB12 = YB12 - g21*dlog(sc) - g31*sc*dlog(sc)
-      YB21 = YB21 - g22*dlog(sc) - g32*sc*dlog(sc)
+      YB11 = YB11 + g21*DLOG(sd) + g31*sc*DLOG(sd) + 4.d0*g31/s
+      YB22 = YB22 + g22*DLOG(sd) + g32*sc*DLOG(sd) + 4.d0*g32/s
+      YB12 = YB12 - g21*DLOG(sc) - g31*sc*DLOG(sc)
+      YB21 = YB21 - g22*DLOG(sc) - g32*sc*DLOG(sc)
       YB12 = YB12 *-4d0/(1d0+alam)**2
       YB21 = YB21 *-4d0/(1d0+rlam)**2
 
@@ -2268,9 +2274,9 @@
          T2 = 1d0/2d0 * ( YB22 + (1d0+rlam)**2/4d0 * YB21 )
       ENDIF
 
-      rel = max(dabs(F1-F1o)/dabs(F1),dabs(F2-F2o)/dabs(F2))
+      rel = MAX(DABS(F1-F1o)/DABS(F1),DABS(F2-F2o)/DABS(F2))
       IF ( rel .GT. acu ) THEN
-         n0 = int(1.1 * float(n0)) ! 10% increase
+         n0 = INT(1.1 * FLOAT(n0)) ! 10% increase
          F1o= F1
          F2o= F2
 !        WRITE(*,*) "n_max, F1, F2, T1, T2 = ", n0, F1, F2, T1, T2, rel
@@ -2280,18 +2286,18 @@
 !     JO84: (seems wrong)      
 !     BY11 = BY11
 !     BY22 = BY22
-!     BY11 = BY11 + 2d0*g21*dlog(2d0) + 2d0*g31
-!     BY22 = BY22 + 2d0*g22*dlog(2d0) + 2d0*g32
+!     BY11 = BY11 + 2d0*g21*DLOG(2d0) + 2d0*g31
+!     BY22 = BY22 + 2d0*g22*DLOG(2d0) + 2d0*g32
 
 !     T19: (seems wrong)      
-!     BY11 = BY11 + 2d0*g21*dlog(2d0) - 2d0*g31
-!     BY22 = BY22 + 2d0*g22*dlog(2d0) - 2d0*g32
+!     BY11 = BY11 + 2d0*g21*DLOG(2d0) - 2d0*g31
+!     BY22 = BY22 + 2d0*g22*DLOG(2d0) - 2d0*g32
 !     BY11 = BY11 - g31
 !     BY22 = BY22 - g32
 
 !     correct?      
-      BY11 = BY11 + 2d0*g21*dlog(2d0) + 2d0*g31
-      BY22 = BY22 + 2d0*g22*dlog(2d0) + 2d0*g32
+      BY11 = BY11 + 2d0*g21*DLOG(2d0) + 2d0*g31
+      BY22 = BY22 + 2d0*g22*DLOG(2d0) + 2d0*g32
       BY12 =-BY12*4.d0/(1.d0+alam)**2
       BY21 =+BY21*4.d0/(1.d0+rlam)**2
       BY22 =-BY22
@@ -2302,7 +2308,7 @@
 
 ! ======================================================================
       SUBROUTINE coeffYB(n0,alam,rlam,fm1,fm2)
-      IMPLICIT DOUBLE PRECISION (a-h,o-z)
+      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
       DOUBLE PRECISION fm1(0:n0),fm2(0:n0)
 !     DOUBLE PRECISION P(0:2307277)
 !     DOUBLE PRECISION V(0:2307277)
@@ -2422,7 +2428,7 @@
 !     Townsend, A. K. (2018). Generating, from scratch, the near-field asymptotic forms of scalar resistance functions for two unequal rigid spheres in low-Reynolds-number flow. arXiv preprint arXiv:1802.08226.
 !     http://ryuon.sourceforge.net/twobody/errata.html
       SUBROUTINE JO84YC(opp,s,alam,T1,T2,acu)
-      IMPLICIT DOUBLE PRECISION (a-h,o-z)
+      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
       DOUBLE PRECISION, ALLOCATABLE, DIMENSION(:) :: fm1,fm2
       LOGICAL opp
 
@@ -2491,10 +2497,10 @@
       ENDDO
       DEALLOCATE ( fm1, fm2 )
 
-      YC11 = YC11 - g21*dlog(sc) - g31*sc*dlog(sc) + 1.d0
-      YC22 = YC22 - g22*dlog(sc) - g32*sc*dlog(sc) + 1.d0
-      YC12 = YC12 + g41*dlog(sd) + g51*sc*dlog(sd) + 4.d0*g51/s
-      YC21 = YC21 + g42*dlog(sd) + g52*sc*dlog(sd) + 4.d0*g52/s
+      YC11 = YC11 - g21*DLOG(sc) - g31*sc*DLOG(sc) + 1.d0
+      YC22 = YC22 - g22*DLOG(sc) - g32*sc*DLOG(sc) + 1.d0
+      YC12 = YC12 + g41*DLOG(sd) + g51*sc*DLOG(sd) + 4.d0*g51/s
+      YC21 = YC21 + g42*DLOG(sd) + g52*sc*DLOG(sd) + 4.d0*g52/s
       YC12 = YC12 * 8d0/(1d0+alam)**3
       YC21 = YC21 * 8d0/(1d0+rlam)**3
 
@@ -2510,9 +2516,9 @@
          T2 = YC22 + (1d0+rlam)**3/8d0 * YC21
       ENDIF
 
-      rel = max(dabs(T1-T1o)/dabs(T1),dabs(T2-T2o)/dabs(T2))
+      rel = MAX(DABS(T1-T1o)/DABS(T1),DABS(T2-T2o)/DABS(T2))
       IF ( rel .GT. acu ) THEN
-         n0 = int(1.1 * float(n0)) ! 10% increase
+         n0 = INT(1.1 * FLOAT(n0)) ! 10% increase
          T1o= T1
          T2o= T2
 !        WRITE(*,*) "n_max, T1, T2 = ", n0, T1, T2, rel
@@ -2521,8 +2527,8 @@
 
       CY11 = CY11 + 1d0
       CY22 = CY22 + 1d0
-      CY12 = CY12 + 2d0*g41*dlog(2d0) - 2d0*g51 ! Doesn't correspond with Table 6 JO84
-      CY21 = CY21 + 2d0*g42*dlog(2d0) - 2d0*g52
+      CY12 = CY12 + 2d0*g41*DLOG(2d0) - 2d0*g51 ! Doesn't correspond with Table 6 JO84
+      CY21 = CY21 + 2d0*g42*DLOG(2d0) - 2d0*g52
 !     WRITE (*,*) CY11,CY12,CY21,CY22
 
       RETURN
@@ -2530,7 +2536,7 @@
 
 ! ======================================================================
       SUBROUTINE coeffYC(n0,alam,rlam,fm1,fm2)
-      IMPLICIT DOUBLE PRECISION (a-h,o-z)
+      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
       DOUBLE PRECISION fm1(0:n0),fm2(0:n0)
 !     DOUBLE PRECISION P(0:2307277)
 !     DOUBLE PRECISION V(0:2307277)
@@ -2629,8 +2635,8 @@
          fm1(k) = 0d0
          fm2(k) = 0d0
          DO iq = 1, k
-            fm1(k) = fm1(k) + Q(INDX2(1,k-iq,iq)) * alam**(iq+mod(k,2))
-            fm2(k) = fm2(k) + Q(INDX2(1,k-iq,iq)) * rlam**(iq+mod(k,2))
+            fm1(k) = fm1(k) + Q(INDX2(1,k-iq,iq)) * alam**(iq+MOD(k,2))
+            fm2(k) = fm2(k) + Q(INDX2(1,k-iq,iq)) * rlam**(iq+MOD(k,2))
          ENDDO
          fm1(k) = fm1(k) * 2d0**k
          fm2(k) = fm2(k) * 2d0**k
@@ -2646,7 +2652,7 @@
 !     http://ryuon.sourceforge.net/twobody/errata.html
 !     Rosa, B., Wang, L. P., Maxey, M. R., & Grabowski, W. W. (2011). An accurate and efficient method for treating aerodynamic interactions of cloud droplets. Journal of Computational Physics, 230(22), 8109-8133.
       SUBROUTINE JO84XC(opp,s,alam,T1,T2,acu)
-      IMPLICIT DOUBLE PRECISION (a-h,o-z)
+      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
       DOUBLE PRECISION, ALLOCATABLE, DIMENSION(:) :: fm1,fm2
 !     REAL*16, ALLOCATABLE, DIMENSION(:) :: fm1,fm2
       LOGICAL opp
@@ -2686,13 +2692,13 @@
       ENDDO
       DEALLOCATE ( fm1, fm2 )
 
-      XC11 = XC11 + alam**2/(2d0+2d0*alam)*dlog(sc) + alam**2/(1d0+alam)/s*dlog(sd) + 1d0
-      XC22 = XC22 + rlam**2/(2d0+2d0*rlam)*dlog(sc) + rlam**2/(1d0+rlam)/s*dlog(sd) + 1d0
-!     XC12 =-8d0/(1d0+alam)**3*XC12+4d0*alam**2/(1d0+alam)**4*dlog(sd)+8d0*alam**2/(1d0+alam)**4/s*dlog(sc)     ! JO84
-      XC12 =-8d0/(1d0+alam)**3*XC12+4d0*alam**2/(1d0+alam)**4*dlog(sd)+8d0*alam**2/(1d0+alam)**4/s*dlog(sc) &   ! Ichiki: missing last factor
+      XC11 = XC11 + alam**2/(2d0+2d0*alam)*DLOG(sc) + alam**2/(1d0+alam)/s*DLOG(sd) + 1d0
+      XC22 = XC22 + rlam**2/(2d0+2d0*rlam)*DLOG(sc) + rlam**2/(1d0+rlam)/s*DLOG(sd) + 1d0
+!     XC12 =-8d0/(1d0+alam)**3*XC12+4d0*alam**2/(1d0+alam)**4*DLOG(sd)+8d0*alam**2/(1d0+alam)**4/s*DLOG(sc)     ! JO84
+      XC12 =-8d0/(1d0+alam)**3*XC12+4d0*alam**2/(1d0+alam)**4*DLOG(sd)+8d0*alam**2/(1d0+alam)**4/s*DLOG(sc) &   ! Ichiki: missing last factor
                                                                      -16d0*alam**2/(1d0+alam)**4/s              ! Ichiki: missing last factor
-!     XC12 =-8d0/(1d0+alam)**3*XC12+4d0*(alam/s)**2/(1d0+alam)**4*dlog(sd)+8d0*alam**2/(1d0+alam)**4/s*dlog(sc) ! RWMG11: (44)
-      XC21 =-8d0/(1d0+rlam)**3*XC21+4d0*rlam**2/(1d0+rlam)**4*dlog(sd)+8d0*rlam**2/(1d0+rlam)**4/s*dlog(sc) &
+!     XC12 =-8d0/(1d0+alam)**3*XC12+4d0*(alam/s)**2/(1d0+alam)**4*DLOG(sd)+8d0*alam**2/(1d0+alam)**4/s*DLOG(sc) ! RWMG11: (44)
+      XC21 =-8d0/(1d0+rlam)**3*XC21+4d0*rlam**2/(1d0+rlam)**4*DLOG(sd)+8d0*rlam**2/(1d0+rlam)**4/s*DLOG(sc) &
                                                                      -16d0*rlam**2/(1d0+rlam)**4/s
 
       IF (opp) THEN
@@ -2703,9 +2709,9 @@
          T2 = XC22 + (1d0+rlam)**3/8d0 * XC21
       ENDIF
 
-      rel = max(dabs(T1-T1o)/dabs(T1),dabs(T2-T2o)/dabs(T2))
+      rel = MAX(DABS(T1-T1o)/DABS(T1),DABS(T2-T2o)/DABS(T2))
 !     IF ( rel .GT. acu ) THEN
-         n0 = int(1.1 * float(n0)) ! 10% increase
+         n0 = INT(1.1 * FLOAT(n0)) ! 10% increase
          T1o= T1
          T2o= T2
 !        WRITE(*,*) "n_max, T1, T2 = ", n0, T1, T2, rel
@@ -2717,7 +2723,7 @@
 
 ! ======================================================================
       SUBROUTINE coeffXC(n0,alam,rlam,fm1,fm2)
-      IMPLICIT DOUBLE PRECISION (a-h,o-z)
+      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
 !     DOUBLE PRECISION Q(0:2284175),FAC0(151,151),QSUM,XN,XS
       DOUBLE PRECISION Q(0:16409500),FAC0(301,301),QSUM,XN,XS
       DOUBLE PRECISION fm1(0:2*n0+1),fm2(0:2*n0+1)
@@ -2762,8 +2768,8 @@
          fm1(k) = 0d0
          fm2(k) = 0d0
          DO iq = 1, k
-            fm1(k) = fm1(k) + Q(INDX2(1,k-iq,iq)) * alam**(iq+mod(k,2))
-            fm2(k) = fm2(k) + Q(INDX2(1,k-iq,iq)) * rlam**(iq+mod(k,2))
+            fm1(k) = fm1(k) + Q(INDX2(1,k-iq,iq)) * alam**(iq+MOD(k,2))
+            fm2(k) = fm2(k) + Q(INDX2(1,k-iq,iq)) * rlam**(iq+MOD(k,2))
          ENDDO
          fm1(k) = fm1(k) * 2d0**k
          fm2(k) = fm2(k) * 2d0**k
@@ -2820,9 +2826,9 @@
 !     respectively. In what follows velocities are normalized by V1x.
 
       SUBROUTINE WAG05ISMX(opp,VR,s,alam,F1,F2)
-      implicit DOUBLE PRECISION (a-h,k-z)
-      DOUBLE PRECISION, dimension(4,5) :: T
-      logical opp
+      IMPLICIT DOUBLE PRECISION (a-h,k-z)
+      DOUBLE PRECISION, DIMENSION(4,5) :: T
+      LOGICAL opp
 
       A11 = (2d0+3d0*VR)/2d0/(1d0+VR)
       B11 = VR/4d0/(1d0+VR)
@@ -2883,9 +2889,9 @@
 !     respectively. In what follows velocities are normalized by V1y.
 
       SUBROUTINE WAG05ISMY(opp,VR,s,alam,F1,F2)
-      implicit DOUBLE PRECISION (a-h,k-z)
-      DOUBLE PRECISION, dimension(4,5) :: T
-      logical opp
+      IMPLICIT DOUBLE PRECISION (a-h,k-z)
+      DOUBLE PRECISION, DIMENSION(4,5) :: T
+      LOGICAL opp
 
       A11 = (2d0+3d0*VR)/2d0/(1d0+VR)
       B11 = VR/4d0/(1d0+VR)
@@ -2934,8 +2940,8 @@
 ! === Rotational Superposition =========================================
 
       SUBROUTINE ROT(opp,s,alam,F1,F2)
-      implicit DOUBLE PRECISION (a-h,k-z)
-      logical opp
+      IMPLICIT DOUBLE PRECISION (a-h,k-z)
+      LOGICAL opp
 
       AR = 2d0/(1d0+alam)/s        ! a1/r
       A1 = AR**3
@@ -2958,11 +2964,11 @@
 !     Goddard, B. D., Mills-Williams, R. D., & Sun, J. (2020). The singular hydrodynamic interactions between two spheres in Stokes flow. Physics of Fluids, 32(6), 062001.
 !     This is the corrected form of the solution provided by Maude (1961): typos found and mentioned earlier
       SUBROUTINE GMS20a(eta1,eta2,F1,F2)
-      implicit DOUBLE PRECISION (a-h,k-z)
+      IMPLICIT DOUBLE PRECISION (a-h,k-z)
       sum1o = 0d0
       sum2o = 0d0
       DO i  = 1, 10000
-         n  = dble(i)
+         n  = DBLE(i)
          sum1 = sum1o + ( an(n,eta1,eta2) + bn(n,eta1,eta2)   &
                       +   cn(n,eta1,eta2) + dn(n,eta1,eta2)   &
                         )                 / Deltan(n,eta1,eta2)
@@ -2971,17 +2977,17 @@
                       +   cn(n,eta1,eta2) - dn(n,eta1,eta2)   &
                         )                 / Deltan(n,eta1,eta2)
 
-         criterion = max(dabs((sum1-sum1o)/sum1), dabs((sum2-sum2o)/sum2))
+         criterion = MAX(DABS((sum1-sum1o)/sum1), DABS((sum2-sum2o)/sum2))
          IF ( criterion .lt. 1d-10 ) THEN
-!           write(*,*) "n_max, sum1, sum2 = ", i,sum1,sum2
+!           WRITE(*,*) "n_max, sum1, sum2 = ", i,sum1,sum2
             GOTO 3
          ENDIF
          sum1o = sum1
          sum2o = sum2
       ENDDO
 
-3     F1 = -1d0/3d0 * dsinh(eta1) * sum1 ! (38)
-      F2 = -1d0/3d0 * dsinh(eta2) * sum2 ! (39)
+3     F1 = -1d0/3d0 * DSINH(eta1) * sum1 ! (38)
+      F2 = -1d0/3d0 * DSINH(eta2) * sum2 ! (39)
 
       RETURN
       END SUBROUTINE
@@ -2989,23 +2995,23 @@
 ! === Goddard, Mills-Williams, Sun (2020) - Tangential Interaction =====
 !     Goddard, B. D., Mills-Williams, R. D., & Sun, J. (2020). The singular hydrodynamic interactions between two spheres in Stokes flow. Physics of Fluids, 32(6), 062001.
       SUBROUTINE GMS20b(al,F1)
-      implicit DOUBLE PRECISION (a-h,k-z)
-      DOUBLE PRECISION, allocatable, dimension (:)   :: At
-      DOUBLE PRECISION, allocatable, dimension (:,:) :: T
+      IMPLICIT DOUBLE PRECISION (A-H,K-Z)
+      DOUBLE PRECISION, ALLOCATABLE, DIMENSION (:)   :: At
+      DOUBLE PRECISION, ALLOCATABLE, DIMENSION (:,:) :: T
 
       F1o= 0d0
       iN = 10
 1     ALLOCATE ( T(iN,4), At(-1:iN+1) )
       At = 0d0
       DO i = 1, iN
-         n = dble(i)
+         n = DBLE(i)
 
          T(i,1) = (n-1d0)*(gma(n-1d0,al)-1d0)-(n-1d0)*(2d0*n-3d0)/(2d0*n-1d0)*(gma(n,al)-1d0)
          T(i,2) = (2d0*n+1d0)-5d0*gma(n,al)-n*(2d0*n-1d0)/(2d0*n+1d0)*(gma(n-1d0,al)+1d0)   &
                 + (n+1d0)*(2d0*n+3d0)/(2d0*n+1d0)*(gma(n+1d0,al)-1d0)
          T(i,3) = (n+2d0)*(2d0*n+5d0)/(2d0*n+3d0)*(gma(n,al)+1d0)-(n+2d0)*(gma(n+1d0,al)+1d0)
-         T(i,4) =-dsqrt(2d0)*dexp(-(n+5d-1)*al)*( dexp(al)/dsinh((n-5d-1)*al)   &
-                - 2d0/dsinh((n+5d-1)*al)+dexp(al)/dsinh((n+15d-1)*al) )
+         T(i,4) =-DSQRT(2d0)*DEXP(-(n+5d-1)*al)*( DEXP(al)/DSINH((n-5d-1)*al)   &
+                - 2d0/DSINH((n+5d-1)*al)+DEXP(al)/DSINH((n+15d-1)*al) )
       ENDDO
 
       CALL TDMA(iN,T)
@@ -3014,28 +3020,25 @@
 
       sumF = 0d0
       DO i = 0, iN
-         n = dble(i)
+         n = DBLE(i)
          C_n = 2d0*(n-1d0)/(2d0*n-1d0)*(gma(n,al)-1d0)*At(i-1)     &
              - 2d0*gma(n,al)*At(i) + 2d0*(n+2d0)/(2d0*n+3d0)       &  ! typo
              * (gma(n,al)+1d0)*At(i+1)
 
-         E_n = dsqrt(8d0)*dexp(-(n+5d-1)*al)/dsinh((n+5d-1)*al)    &
+         E_n = DSQRT(8d0)*DEXP(-(n+5d-1)*al)/DSINH((n+5d-1)*al)    &
              - n*(n-1d0)/(2d0*n-1d0)*(gma(n,al)-1d0)      *At(i-1) &
              + (n+1d0)*(n+2d0)/(2d0*n+3d0)*(gma(n,al)+1d0)*At(i+1)
         sumF = sumF  + E_n + n*(n+1d0) * C_n
       ENDDO
+      DEALLOCATE ( T, At )
 
-      F1 = dsqrt(2d0)/6d0 * dsinh(al) * sumF ! (3.57)
-      criterion = dabs(F1-F1o)/dabs(F1)
+      F1 = DSQRT(2d0)/6d0 * DSINH(al) * sumF ! (3.57)
+      criterion = DABS(F1-F1o)/DABS(F1)
       IF ( criterion .gt. 1d-10 ) THEN
-         iN = int(1.1 * float(iN)) ! 10% increase
+         iN = INT(1.2 * FLOAT(iN)) ! 20% increase
          F1o= F1
-!        write(*,*) "n_max, F1 = ", iN,F1
-         DEALLOCATE ( T, At )
+!        WRITE(*,*) "n_max, F1 = ", iN,F1
          GOTO 1
-      ELSE
-         DEALLOCATE ( T, At )
-!        write(*,*) "n_max, F1 = ", iN,F1
       ENDIF
 
       RETURN
@@ -3045,55 +3048,55 @@
 
       DOUBLE PRECISION FUNCTION an(n,eta1,eta2)
       DOUBLE PRECISION :: n,eta1,eta2
-      an = (2d0*n+1d0)*(n-1d0/2d0)*(dcosh(2*eta1)-dcosh(2*eta2))
-      an = an - 2d0*(2d0*n-1d0)*dsinh((n+1d0/2d0)*(eta1-eta2))*dsinh((n+1d0/2d0)*(eta1+eta2))
-      an = an + 2d0*(2d0*n+1d0)*dsinh((n+3d0/2d0)*(eta1-eta2))*dsinh((n-1d0/2d0)*(eta1+eta2))
+      an = (2d0*n+1d0)*(n-1d0/2d0)*(DCOSH(2*eta1)-DCOSH(2*eta2))
+      an = an - 2d0*(2d0*n-1d0)*DSINH((n+1d0/2d0)*(eta1-eta2))*DSINH((n+1d0/2d0)*(eta1+eta2))
+      an = an + 2d0*(2d0*n+1d0)*DSINH((n+3d0/2d0)*(eta1-eta2))*DSINH((n-1d0/2d0)*(eta1+eta2))
       an = an * (2d0*n+3d0)
       RETURN
       END
 
       DOUBLE PRECISION FUNCTION bn(n,eta1,eta2)
       DOUBLE PRECISION :: n,eta1,eta2
-      bn = (2d0*n+1d0)*(n-1d0/2d0)*(dsinh(2*eta2)-dsinh(2*eta1))
-      bn = bn - 2d0*(2d0*n-1d0)*dsinh((n+1d0/2d0)*(eta1-eta2))*dcosh((n+1d0/2d0)*(eta1+eta2))
-      bn = bn + 2d0*(2d0*n+1d0)*dsinh((n+3d0/2d0)*(eta1-eta2))*dcosh((n-1d0/2d0)*(eta1+eta2))
-      bn = bn + 4d0*dexp((eta2-eta1)*(n+1d0/2d0))*dsinh((n+1d0/2d0)*(eta1-eta2))
-      bn = bn + (2d0*n+1d0)**2*dexp(eta1-eta2)*dsinh(eta1-eta2)
+      bn = (2d0*n+1d0)*(n-1d0/2d0)*(DSINH(2*eta2)-DSINH(2*eta1))
+      bn = bn - 2d0*(2d0*n-1d0)*DSINH((n+1d0/2d0)*(eta1-eta2))*DCOSH((n+1d0/2d0)*(eta1+eta2))
+      bn = bn + 2d0*(2d0*n+1d0)*DSINH((n+3d0/2d0)*(eta1-eta2))*DCOSH((n-1d0/2d0)*(eta1+eta2))
+      bn = bn + 4d0*DEXP((eta2-eta1)*(n+1d0/2d0))*DSINH((n+1d0/2d0)*(eta1-eta2))
+      bn = bn + (2d0*n+1d0)**2*DEXP(eta1-eta2)*DSINH(eta1-eta2)
       bn = bn *-(2d0*n+3d0)
       RETURN
       END
 
       DOUBLE PRECISION FUNCTION cn(n,eta1,eta2)
       DOUBLE PRECISION :: n,eta1,eta2
-      cn = (2d0*n+1d0)*(n+3d0/2d0)*(dcosh(2*eta1)-dcosh(2*eta2))
-      cn = cn + 2d0*(2d0*n+3d0)*dsinh((n+1d0/2d0)*(eta1-eta2))*dsinh((n+1d0/2d0)*(eta1+eta2))
-      cn = cn + 2d0*(2d0*n+1d0)*dsinh((n+3d0/2d0)*(eta1+eta2))*dsinh((n-1d0/2d0)*(eta2-eta1))
+      cn = (2d0*n+1d0)*(n+3d0/2d0)*(DCOSH(2*eta1)-DCOSH(2*eta2))
+      cn = cn + 2d0*(2d0*n+3d0)*DSINH((n+1d0/2d0)*(eta1-eta2))*DSINH((n+1d0/2d0)*(eta1+eta2))
+      cn = cn + 2d0*(2d0*n+1d0)*DSINH((n+3d0/2d0)*(eta1+eta2))*DSINH((n-1d0/2d0)*(eta2-eta1))
       cn = cn *-(2d0*n-1d0)
       RETURN
       END
 
       DOUBLE PRECISION FUNCTION dn(n,eta1,eta2)
       DOUBLE PRECISION :: n,eta1,eta2
-      dn = (2d0*n+1d0)*(n+3d0/2d0)*(dsinh(2*eta1)-dsinh(2*eta2))
-      dn = dn + 2d0*(2d0*n+3d0)*dsinh((n+1d0/2d0)*(eta1-eta2))*dcosh((n+1d0/2d0)*(eta1+eta2))
-      dn = dn + 2d0*(2d0*n+1d0)*dsinh((n-1d0/2d0)*(eta2-eta1))*dcosh((n+3d0/2d0)*(eta1+eta2))
-      dn = dn + 4d0*dexp((eta2-eta1)*(n+1d0/2d0))*dsinh((n+1d0/2d0)*(eta1-eta2))
-      dn = dn - (2d0*n+1d0)**2*dexp(eta2-eta1)*dsinh(eta1-eta2)
+      dn = (2d0*n+1d0)*(n+3d0/2d0)*(DSINH(2*eta1)-DSINH(2*eta2))
+      dn = dn + 2d0*(2d0*n+3d0)*DSINH((n+1d0/2d0)*(eta1-eta2))*DCOSH((n+1d0/2d0)*(eta1+eta2))
+      dn = dn + 2d0*(2d0*n+1d0)*DSINH((n-1d0/2d0)*(eta2-eta1))*DCOSH((n+3d0/2d0)*(eta1+eta2))
+      dn = dn + 4d0*DEXP((eta2-eta1)*(n+1d0/2d0))*DSINH((n+1d0/2d0)*(eta1-eta2))
+      dn = dn - (2d0*n+1d0)**2*DEXP(eta2-eta1)*DSINH(eta1-eta2)
       dn = dn * (2d0*n-1d0)
       RETURN
       END
 
       DOUBLE PRECISION FUNCTION Deltan(n,eta1,eta2)
       DOUBLE PRECISION :: n,eta1,eta2
-      Deltan = 4d0*dsinh((n+1d0/2d0)*(eta1-eta2))**2
-      Deltan = Deltan - ( (2d0*n+1d0) * dsinh(eta1-eta2) )**2
+      Deltan = 4d0*DSINH((n+1d0/2d0)*(eta1-eta2))**2
+      Deltan = Deltan - ( (2d0*n+1d0) * DSINH(eta1-eta2) )**2
       Deltan = Deltan * (2d0*n-1d0)*(2d0*n+3d0) / ( n * (n+1d0) )
       RETURN
       END
 
       DOUBLE PRECISION FUNCTION gma(n,al)
       DOUBLE PRECISION :: n,al
-      gma = ( dtanh(al)*dtanh((n+5d-1)*al) )**(-1)
+      gma = ( DTANH(al)*DTANH((n+5d-1)*al) )**(-1)
       RETURN
       END
 ! ======================================================================
@@ -3109,14 +3112,14 @@
 !     simutaneously for matrix A and several RHS vectors b). The 
 !     parameter (NMAX=100, MMAX=200) is just an example to make it
 !     suitable for solving with <=100 unknowns with <= 200-100 RHS 
-!     vectors. In your specIFic case (4 eqns with one RHS vector),
+!     vectors. In your specific case (4 eqns with one RHS vector),
 !     NMAX=4, MMAX=5 would suffice, but you do not have to make that
 !     change, just make sure, one way or the other, that dimensions of
 !     T are consistent in GAUSS and the calling routine.
 
 !     To use GAUSS for AX=b, put A into the (N,N) part of matrix T,
 !     (i.e. T_{iJ}=A_{ij} for i,j <=N) and set 
-!     T(1,N+1)=b_1, T(2,N+1)=b_2, ... T(N,N+1)=b_N (IF you have one
+!     T(1,N+1)=b_1, T(2,N+1)=b_2, ... T(N,N+1)=b_N (if you have one
 !     RHS vector b). After call GAUSS(N,N+1,T) you will get the 
 !     solution X_i= T(i,N+1) for i<=N. In your case, N=4.
 
@@ -3130,7 +3133,7 @@
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
 !     PARAMETER (NMAX=100, MMAX=200)
 !     DIMENSION T(NMAX,MMAX)
-      DIMENSION T(N,M) ! My modIFication
+      DIMENSION T(N,M) ! My modification
       INTEGER S
       
       DO 1 I=1,N
@@ -3173,6 +3176,7 @@
          T(I,2) = T(I,2) - T(I,1) / T(I-1,2) * T(I-1,3)
          T(I,4) = T(I,4) - T(I,1) / T(I-1,2) * T(I-1,4)
       ENDDO
+
       T(N,4) = T(N,4) / T(N,2)
       DO I = N-1, 1, -1
          T(I,4) = ( T(I,4) - T(I,3) * T(I+1,4) ) / T(I,2)
@@ -3232,7 +3236,6 @@
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
       DIMENSION T(N,N+1)
 
-!     CALL CPU_TIME(start)
       DO K = 1, N-1
         UK = T(K,N+1) / T(K,K)
         IJ = 1
@@ -3240,13 +3243,12 @@
         IF ( NI .GT. N ) NI = N
         DO I = K+1, NI
           UI = T(I,K) / T(K,K)
-          NJ = K + IJ + KU
+          NJ = K + KU
           IF ( NJ .GT. N ) NJ = N
           DO J = K+1, NJ
             T(I,J) =  T(I,J)  - T(K,J) * UI
           ENDDO
           T(I,N+1) = T(I,N+1) - T(I,K) * UK
-          IJ = IJ + 1
         ENDDO
       ENDDO
 
@@ -3260,8 +3262,63 @@
          T(I,N+1) = ( T(I,N+1) - S ) / T(I,I)
       ENDDO
 
-!     CALL CPU_TIME(finish)
-!     WRITE(*,*) 'Elapsed time', finish-start ,'s'
+      RETURN
+      END SUBROUTINE
+! ======================================================================
+
+! === T H O M A S   A L G O R I T H M   B A N D E D   M A T R I X ======
+!     KL = Lower band: No. of sub-diagonals
+!     KU = Upper band: No. of super-diagonals
+!     If KL = KU = 1 then the solver works
+!     similar to TDMA. The system of equations
+!     has to be given to the solver in the
+!     following compact form:
+!     beginning from the left-most column
+!     we fill T(:,j) with vectors containing
+!     sub-diagonal, diagonal, super-diagonal
+!     and finally the RHS (vector b) elements.
+!     Example: N = 5, KL = 1, KU = 2
+!     2  3  4  0  0 | 5
+!     1  2  3  4  0 | 5
+!     0  1  2  3  4 | 5
+!     0  0  1  2  3 | 5
+!     0  0  0  1  2 | 5
+!     This system has to be rearranged to:
+!     0  2  3  4 | 5
+!     1  2  3  4 | 5
+!     1  2  3  4 | 5
+!     1  2  3  0 | 5
+!     1  2  0  0 | 5
+
+      SUBROUTINE THOMAS(N,KL,KU,T)
+      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+      DIMENSION T(N,KL+KU+2)
+
+      DO K = 1, N-1
+        NI = K + KL
+        IF ( NI .GT. N ) NI = N
+        DO I = K+1, NI
+           U = T(I, K+KL-I+1) / T(K, KL+1)
+           IF ( ABS(T(K, KL+1)) .LT. 1D-15 ) &
+           WRITE(*,*) 'Check: diagonal element = 0'
+           NJ = K + KL + KU - I + 1
+           DO J = K+KL-I+2, NJ
+              T(I,J) = T(I,J) - T(K, I+J-K) * U
+           ENDDO
+           T(I, KL+KU+2) = T(I, KL+KU+2) - T(K, KL+KU+2) * U
+        ENDDO
+      ENDDO
+
+      DO I = N, 1, -1
+         K = I + 1
+         S = 0D0
+         DO J = KL+2, KL+KU+1
+            IF (K.GT.N) EXIT
+            S = S + T(I,J) * T(K, KL+KU+2)
+            K = K + 1
+         ENDDO
+         T(I, KL+KU+2) = ( T(I, KL+KU+2) - S ) / T(I, KL+1)
+      ENDDO
 
       RETURN
       END SUBROUTINE
