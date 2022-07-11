@@ -1550,7 +1550,7 @@
          T(4*i-1,07) = 2d0*(2d0*n-1d0)*DCOSH((n-05d-1)*xi1) + Cla/DTANH(xi1)*(2d0*n-1d0)**2*DSINH((n-05d-1)*xi1)
          T(4*i-1,08) = 2d0*(2d0*n+3d0)*DSINH((n+15d-1)*xi1) + Cla/DTANH(xi1)*(2d0*n+3d0)**2*DCOSH((n+15d-1)*xi1)
          T(4*i-1,09) = 2d0*(2d0*n+3d0)*DCOSH((n+15d-1)*xi1) + Cla/DTANH(xi1)*(2d0*n+3d0)**2*DSINH((n+15d-1)*xi1)
-         IF (i.lt.iN) THEN
+         IF (i.LT.iN) THEN
          T(4*i-1,10) =-Cla/DSINH(xi1)*n/(2d0*n+3d0)*(2d0*n+1d0)**2*DCOSH((n+05d-1)*xi1)
          T(4*i-1,11) =-Cla/DSINH(xi1)*n/(2d0*n+3d0)*(2d0*n+1d0)**2*DSINH((n+05d-1)*xi1)
          T(4*i-1,12) =-Cla/DSINH(xi1)*n/(2d0*n+3d0)*(2d0*n+5d0)**2*DCOSH((n+25d-1)*xi1)
@@ -1572,7 +1572,7 @@
          T(4*i  ,06) = 2d0*(2d0*n-1d0)*DCOSH((n-05d-1)*xi2) - Cla*DCOSH(xi2)/DSINH(xi1)*(2d0*n-1d0)**2*DSINH((n-05d-1)*xi2)
          T(4*i  ,07) = 2d0*(2d0*n+3d0)*DSINH((n+15d-1)*xi2) - Cla*DCOSH(xi2)/DSINH(xi1)*(2d0*n+3d0)**2*DCOSH((n+15d-1)*xi2)
          T(4*i  ,08) = 2d0*(2d0*n+3d0)*DCOSH((n+15d-1)*xi2) - Cla*DCOSH(xi2)/DSINH(xi1)*(2d0*n+3d0)**2*DSINH((n+15d-1)*xi2)
-         IF (i.lt.iN) THEN
+         IF (i.LT.iN) THEN
          T(4*i  ,09) =+Cla/DSINH(xi1)*n/(2d0*n+3d0)*(2d0*n+1d0)**2*DCOSH((n+05d-1)*xi2)
          T(4*i  ,10) =+Cla/DSINH(xi1)*n/(2d0*n+3d0)*(2d0*n+1d0)**2*DSINH((n+05d-1)*xi2)
          T(4*i  ,11) =+Cla/DSINH(xi1)*n/(2d0*n+3d0)*(2d0*n+5d0)**2*DCOSH((n+25d-1)*xi2)
@@ -1641,7 +1641,7 @@
       suma = sumo + Kn*( N0 + mur * N1 ) / ( D0 + mur * D1 )
 
          criterion = DABS((suma-sumo))/DABS(suma)
-         IF ( criterion .lt. 1d-10 ) THEN
+         IF ( criterion .LT. 1d-10 ) THEN
 !           WRITE(*,*) "n_max, sum = ", i,suma
             GOTO 1
          ENDIF
