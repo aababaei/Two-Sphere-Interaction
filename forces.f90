@@ -789,13 +789,13 @@
          fctr2 = (2d0*n+5d0)*alpha(n,al,be)-(2d0*n+3d0)*alpha(n+1d0,al,be)+2d0*kappa(al,be)
          fctr3 = (2d0*n-1d0)*(gamm(n-1d0,al,be)-dlta(n-1d0,al,be))-(2d0*n-3d0)*(gamm(n,al,be)-dlta(n,al,be))-4d0
          fctr4 = (2d0*n+5d0)*(gamm(n,al,be)-dlta(n,al,be))-(2d0*n+3d0)*(gamm(n+1d0,al,be)-dlta(n+1d0,al,be))+4d0
-         IF (i.gt.1) THEN
+         IF (i.GT.1) THEN
          T(2*i-1,2) = fctr3 * (n-1d0)/(2d0*n-1d0) ! B_n-1 (39)
          T(2*i-1,3) = fctr1 * (n-1d0)/(2d0*n-1d0) ! A_n-1 (39)
          ENDIF
          T(2*i-1,4) = fctr3 * -n/(2d0*n+1d0) - fctr4 * (n+1d0)/(2d0*n+1d0) ! B_n (39)
          T(2*i-1,5) = fctr1 * -n/(2d0*n+1d0) - fctr2 * (n+1d0)/(2d0*n+1d0) ! A_n (39)
-         IF (i.lt.iN) THEN
+         IF (i.LT.iN) THEN
          T(2*i-1,6) = fctr4 * (n+2d0)/(2d0*n+3d0) ! B_n+1 (39)
          T(2*i-1,7) = fctr2 * (n+2d0)/(2d0*n+3d0) ! A_n+1 (39)
          ENDIF
@@ -806,13 +806,13 @@
          fctr3 = (2d0*n-1d0)*alpha(n-1d0,al,be)-(2d0*n-3d0)*alpha(n,al,be)-2d0*kappa(al,be)
          fctr4 = (2d0*n+5d0)*alpha(n,al,be)-(2d0*n+3d0)*alpha(n+1d0,al,be)-2d0*kappa(al,be)
 
-         IF (i.gt.1) THEN
+         IF (i.GT.1) THEN
          T(2*i,1) = fctr3 * (n-1d0)/(2d0*n-1d0) ! B_n-1 (40)
          T(2*i,2) = fctr1 * (n-1d0)/(2d0*n-1d0) ! A_n-1 (40)
          ENDIF
          T(2*i,3) = fctr3 * -n/(2d0*n+1d0) - fctr4 * (n+1d0)/(2d0*n+1d0) ! B_n (40)
          T(2*i,4) = fctr1 * -n/(2d0*n+1d0) - fctr2 * (n+1d0)/(2d0*n+1d0) ! A_n (40)
-         IF (i.lt.iN) THEN
+         IF (i.LT.iN) THEN
          T(2*i,5) = fctr4 * (n+2d0)/(2d0*n+3d0) ! B_n+1 (40)
          T(2*i,6) = fctr2 * (n+2d0)/(2d0*n+3d0) ! A_n+1 (40)
          ENDIF
@@ -929,13 +929,13 @@
          fctr2 = (2d0*n+5d0)*alpha(n,al,be)-(2d0*n+3d0)*alpha(n+1d0,al,be)+2d0*kappa(al,be)
          fctr3 = (2d0*n-1d0)*(gamm(n-1d0,al,be)-dlta(n-1d0,al,be))-(2d0*n-3d0)*(gamm(n,al,be)-dlta(n,al,be))-4d0
          fctr4 = (2d0*n+5d0)*(gamm(n,al,be)-dlta(n,al,be))-(2d0*n+3d0)*(gamm(n+1d0,al,be)-dlta(n+1d0,al,be))+4d0
-         IF (i.gt.1) THEN
+         IF (i.GT.1) THEN
          T(2*i-1,2) = fctr3 * (n-1d0)/(2d0*n-1d0) ! B_n-1 (39)
          T(2*i-1,3) = fctr1 * (n-1d0)/(2d0*n-1d0) ! A_n-1 (39)
          ENDIF
          T(2*i-1,4) = fctr3 * -n/(2d0*n+1d0) - fctr4 * (n+1d0)/(2d0*n+1d0) ! B_n (39)
          T(2*i-1,5) = fctr1 * -n/(2d0*n+1d0) - fctr2 * (n+1d0)/(2d0*n+1d0) ! A_n (39)
-         IF (i.lt.iN) THEN
+         IF (i.LT.iN) THEN
          T(2*i-1,6) = fctr4 * (n+2d0)/(2d0*n+3d0) ! B_n+1 (39)
          T(2*i-1,7) = fctr2 * (n+2d0)/(2d0*n+3d0) ! A_n+1 (39)
          ENDIF
@@ -945,13 +945,13 @@
          fctr2 = (2d0*n+5d0)*(gamm(n,al,be)+dlta(n,al,be))-(2d0*n+3d0)*(gamm(n+1d0,al,be)+dlta(n+1d0,al,be))-4d0
          fctr3 = (2d0*n-1d0)*alpha(n-1d0,al,be)-(2d0*n-3d0)*alpha(n,al,be)-2d0*kappa(al,be)
          fctr4 = (2d0*n+5d0)*alpha(n,al,be)-(2d0*n+3d0)*alpha(n+1d0,al,be)-2d0*kappa(al,be)
-         IF (i.gt.1) THEN
+         IF (i.GT.1) THEN
          T(2*i,1) = fctr3 * (n-1d0)/(2d0*n-1d0) ! B_n-1 (40)
          T(2*i,2) = fctr1 * (n-1d0)/(2d0*n-1d0) ! A_n-1 (40)
          ENDIF
          T(2*i,3) = fctr3 * -n/(2d0*n+1d0) - fctr4 * (n+1d0)/(2d0*n+1d0) ! B_n (40)
          T(2*i,4) = fctr1 * -n/(2d0*n+1d0) - fctr2 * (n+1d0)/(2d0*n+1d0) ! A_n (40)
-         IF (i.lt.iN) THEN
+         IF (i.LT.iN) THEN
          T(2*i,5) = fctr4 * (n+2d0)/(2d0*n+3d0) ! B_n+1 (40)
          T(2*i,6) = fctr2 * (n+2d0)/(2d0*n+3d0) ! A_n+1 (40)
          ENDIF
@@ -1521,14 +1521,14 @@
          n = DBLE(i)
          k = n*(n+1d0)/(2d0*n-1d0)/(2d0*n+3d0)
 
-         ! (19): ξ1
+         ! (19): ξ₁
          T(4*i-3,08) = DCOSH((n-05d-1)*xi1)
          T(4*i-3,09) = DSINH((n-05d-1)*xi1)
          T(4*i-3,10) = DCOSH((n+15d-1)*xi1)
          T(4*i-3,11) = DSINH((n+15d-1)*xi1)
          T(4*i-3,14)=-k*( (2d0*n+3d0)*DEXP(-(n-05d-1)*xi1) - (2d0*n-1d0)*DEXP(-(n+15d-1)*xi1) )
          ! the factors "Uc^2/sq(2)" are ignored due to (22) & (23)
-         ! (19): ξ2
+         ! (19): ξ₂
          T(4*i-2,07) = DCOSH((n-05d-1)*xi2)
          T(4*i-2,08) = DSINH((n-05d-1)*xi2)
          T(4*i-2,09) = DCOSH((n+15d-1)*xi2)
@@ -1539,8 +1539,8 @@
          T(4*i-2,14) =-k*( (2d0*n+3d0)*DEXP((n-05d-1)*xi2) - (2d0*n-1d0)*DEXP((n+15d-1)*xi2) )
          ENDIF
          
-         ! (20): ξ1
-         IF (i.gt.1) THEN
+         ! (20): ξ₁
+         IF (i.GT.1) THEN
          T(4*i-1,02) =-Cla/DSINH(xi1)*(n+1d0)/(2d0*n-1d0)*(2d0*n-3d0)**2*DCOSH((n-15d-1)*xi1)
          T(4*i-1,03) =-Cla/DSINH(xi1)*(n+1d0)/(2d0*n-1d0)*(2d0*n-3d0)**2*DSINH((n-15d-1)*xi1)
          T(4*i-1,04) =-Cla/DSINH(xi1)*(n+1d0)/(2d0*n-1d0)*(2d0*n+1d0)**2*DCOSH((n+05d-1)*xi1)
@@ -1561,8 +1561,8 @@
          -(n-1d0)/(2d0*n-1d0)*((2d0*n-3d0)*DEXP(-(n-15d-1)*xi1)-(2d0*n+1d0)*DEXP(-(n+05d-1)*xi1)) &
          -(n+2d0)/(2d0*n+3d0)*((2d0*n+1d0)*DEXP(-(n+05d-1)*xi1)-(2d0*n+5d0)*DEXP(-(n+25d-1)*xi1)))&
          +2d0*n*(n+1d0)      *            (DEXP(-(n-05d-1)*xi1)      -      DEXP(-(n+15d-1)*xi1) )
-         ! (20): ξ2
-         IF (i.gt.1) THEN
+         ! (20): ξ₂
+         IF (i.GT.1) THEN
          T(4*i  ,01) =+Cla/DSINH(xi1)*(n+1d0)/(2d0*n-1d0)*(2d0*n-3d0)**2*DCOSH((n-15d-1)*xi2)
          T(4*i  ,02) =+Cla/DSINH(xi1)*(n+1d0)/(2d0*n-1d0)*(2d0*n-3d0)**2*DSINH((n-15d-1)*xi2)
          T(4*i  ,03) =+Cla/DSINH(xi1)*(n+1d0)/(2d0*n-1d0)*(2d0*n+1d0)**2*DCOSH((n+05d-1)*xi2)
@@ -2979,7 +2979,7 @@
 
       F1 = DSQRT(2d0)/6d0 * DSINH(al) * sumF ! (3.57)
       criterion = DABS(F1-F1o)/DABS(F1)
-      IF ( criterion .gt. 1d-10 ) THEN
+      IF ( criterion .GT. 1d-10 ) THEN
          iN = INT(1.2 * FLOAT(iN)) ! 20% increase
          F1o= F1
 !        WRITE(*,*) "n_max, F1 = ", iN,F1
