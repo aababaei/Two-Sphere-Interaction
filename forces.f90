@@ -17,9 +17,10 @@
 ! ============ I N P U T S ==============
 
         alam = 1.00d-0 ! Radius ratio
-         mur = 0d+6    ! Viscosity ratio
-!        ncl = .TRUE.  ! Non-continuum lubrication ON
-         ncl = .FALSE. ! Non-continuum lubrication OFF
+          a1 = 1d+1    ! Larger drop radius [μm]
+         mur = 1d+2    ! Viscosity ratio
+         ncl = .TRUE.  ! Non-continuum lubrication ON
+!        ncl = .FALSE. ! Non-continuum lubrication OFF
          opp = .TRUE.  ! Orientation: opposing
 !        opp = .FALSE. ! Orientation: same
 
@@ -28,7 +29,7 @@
 ! gap size ξ = s — 2 in JO84 notation:
       xi_min = 1d-3
       xi_max = 1d+2
-      sample = 9d0
+      sample = 19d0
       dlt_xi = DLOG ( xi_max / xi_min ) / sample
 !     dlt_la = ( 1d0 - 5d-2  ) / sample
            s = 2d0 + xi_min + 3d-16
@@ -63,7 +64,9 @@
 !     CALL HHS73EXP(opp,mur,mur,al,be,F1,F2,acu)
 !     CALL HHS73IMP(opp,mur,mur,al,be,F1,F2,acu)
 
-      CALL RM74(opp,1d+6,al,be,F1,F2,acu)
+!     CALL RM74(opp,al,be,a1,F1,F2,acu)
+
+      CALL RSD22(opp,mur,mur,al,be,a1,F1,F2,acu)
 
 !     CALL BRI78(mur,al,F1)
 
@@ -81,8 +84,9 @@
 !     CALL GMS20b(al,F1) ! wrong ?
 
 ! ============ O U T P U T ==============
-      WRITE(1,*) s-2d0, F1, F2, T1, T2
-      WRITE(*,*) s-2d0, F1, F2, T1, T2
+      WRITE(1,*) s-2d0, F1!, F2, T1, T2
+!     WRITE(1,*) F1, F2
+      WRITE(*,*) s-2d0, F1, F2!, T1, T2
 !     WRITE(1,*) alam, F1, F2
 !     WRITE(*,*) alam, F1, F2, T1, T2
 ! ======================================= 
@@ -1130,10 +1134,10 @@
 !     could be used in (5.14) and (5.15) to compute torque-free forces
 !     acting on two spheres translating normal to their line of centers.
 
-!     y: out normal to this plane                ↺ Ω₁
+!     y: out normal to this plane                 ↺ Ω₁
 !     ⨀ → x                                    a₁ ◯ → V₁
 !     ↓ 
-!     z                                          ↺ Ω₂
+!     z                                           ↺ Ω₂
 !                                              a₂ ◯ → V₂
 
 !                        T R A N S L A T I O N                 R O T A T I O N
@@ -1192,7 +1196,6 @@
       END SUBROUTINE
 ! ======================================================================
 
-
 ! === Wacholder & Weihs (1972) =========================================
 !     Wacholder, E., & Weihs, D. (1972). Slow motion of a fluid sphere in the vicinity of another sphere or a plane boundary. Chemical Engineering Science, 27(10), 1817-1828.
       SUBROUTINE WW72(si,al,F,acu)
@@ -1211,7 +1214,8 @@
       ENDDO
 
       lambdaWW = 4d0*(si+1d0)/(3d0*si+2d0)*DSINH(al)*sum1 ! Table 1
-      F = 4d0/3d0*DSINH(al)*sum1 ! (2.45) normalized ONLY by —6πμaU
+      F = 4d0/3d0*DSINH(al)*sum1    ! (2.45) normalized ONLY by —6πμaU
+      F = F * (si+1d0)/(si+2d0/3d0) ! —4πμaV(1.5μᵣ+1)/(μᵣ+1)
 
       END SUBROUTINE
 
@@ -1505,12 +1509,19 @@
 
 ! === Reed & Morrison (1974) ===========================================
 !     Reed, L. D., & Morrison Jr, F. A. (1974). Particle interactions in viscous flow at small values of Knudsen number. Journal of Aerosol Science, 5(2), 175-189.
-      SUBROUTINE RM74(opp,Kn,xi1,xi2,F1,F2,acu)
+      SUBROUTINE RM74(opp,xi1,xi2,a1,F1,F2,acu)
       IMPLICIT DOUBLE PRECISION (A-H,K-Z)
       DOUBLE PRECISION, ALLOCATABLE, DIMENSION (:,:) :: T
       LOGICAL opp
 
-      Cla= 1.5d0 * Kn ! ASSUMED !
+      Cm = 1.0d0 ! Momentum accommodation (assumed)
+      mfp= 0.1d0 ! Air mean free path
+       c = a1 * DSINH(xi1)
+      a2 = a1 * DSINH(xi1) /-DSINH(xi2)
+      Clc= Cm * mfp / c
+      C1 = Cm * mfp / a1
+      C2 = Cm * mfp / a2
+
       F1o= 0d0
       F2o= 0d0
       iN = 50
@@ -1528,64 +1539,63 @@
          T(4*i-3,11) = DSINH((n+15d-1)*xi1)
          T(4*i-3,14)=-k*( (2d0*n+3d0)*DEXP(-(n-05d-1)*xi1) - (2d0*n-1d0)*DEXP(-(n+15d-1)*xi1) )
          ! the factors "Uc^2/sq(2)" are ignored due to (22) & (23)
+
          ! (19): ξ₂
          T(4*i-2,07) = DCOSH((n-05d-1)*xi2)
          T(4*i-2,08) = DSINH((n-05d-1)*xi2)
          T(4*i-2,09) = DCOSH((n+15d-1)*xi2)
          T(4*i-2,10) = DSINH((n+15d-1)*xi2)
-         IF (opp) THEN
-         T(4*i-2,14) =+k*( (2d0*n+3d0)*DEXP((n-05d-1)*xi2) - (2d0*n-1d0)*DEXP((n+15d-1)*xi2) )
-         ELSE
          T(4*i-2,14) =-k*( (2d0*n+3d0)*DEXP((n-05d-1)*xi2) - (2d0*n-1d0)*DEXP((n+15d-1)*xi2) )
-         ENDIF
+         IF (opp) T(4*i-2,14) = -T(4*i-2,14)
          
          ! (20): ξ₁
          IF (i.GT.1) THEN
-         T(4*i-1,02) =-Cla/DSINH(xi1)*(n+1d0)/(2d0*n-1d0)*(2d0*n-3d0)**2*DCOSH((n-15d-1)*xi1)
-         T(4*i-1,03) =-Cla/DSINH(xi1)*(n+1d0)/(2d0*n-1d0)*(2d0*n-3d0)**2*DSINH((n-15d-1)*xi1)
-         T(4*i-1,04) =-Cla/DSINH(xi1)*(n+1d0)/(2d0*n-1d0)*(2d0*n+1d0)**2*DCOSH((n+05d-1)*xi1)
-         T(4*i-1,05) =-Cla/DSINH(xi1)*(n+1d0)/(2d0*n-1d0)*(2d0*n+1d0)**2*DSINH((n+05d-1)*xi1)
+         T(4*i-1,02) =-Clc*(n+1d0)/(2d0*n-1d0)*(2d0*n-3d0)**2*DCOSH((n-15d-1)*xi1)
+         T(4*i-1,03) =-Clc*(n+1d0)/(2d0*n-1d0)*(2d0*n-3d0)**2*DSINH((n-15d-1)*xi1)
+         T(4*i-1,04) =-Clc*(n+1d0)/(2d0*n-1d0)*(2d0*n+1d0)**2*DCOSH((n+05d-1)*xi1)
+         T(4*i-1,05) =-Clc*(n+1d0)/(2d0*n-1d0)*(2d0*n+1d0)**2*DSINH((n+05d-1)*xi1)
          ENDIF
-         T(4*i-1,06) = 2d0*(2d0*n-1d0)*DSINH((n-05d-1)*xi1) + Cla/DTANH(xi1)*(2d0*n-1d0)**2*DCOSH((n-05d-1)*xi1)
-         T(4*i-1,07) = 2d0*(2d0*n-1d0)*DCOSH((n-05d-1)*xi1) + Cla/DTANH(xi1)*(2d0*n-1d0)**2*DSINH((n-05d-1)*xi1)
-         T(4*i-1,08) = 2d0*(2d0*n+3d0)*DSINH((n+15d-1)*xi1) + Cla/DTANH(xi1)*(2d0*n+3d0)**2*DCOSH((n+15d-1)*xi1)
-         T(4*i-1,09) = 2d0*(2d0*n+3d0)*DCOSH((n+15d-1)*xi1) + Cla/DTANH(xi1)*(2d0*n+3d0)**2*DSINH((n+15d-1)*xi1)
+         T(4*i-1,06) = 2d0*(2d0*n-1d0)*DSINH((n-05d-1)*xi1) + Clc*DCOSH(xi1)*(2d0*n-1d0)**2*DCOSH((n-05d-1)*xi1)
+         T(4*i-1,07) = 2d0*(2d0*n-1d0)*DCOSH((n-05d-1)*xi1) + Clc*DCOSH(xi1)*(2d0*n-1d0)**2*DSINH((n-05d-1)*xi1)
+         T(4*i-1,08) = 2d0*(2d0*n+3d0)*DSINH((n+15d-1)*xi1) + Clc*DCOSH(xi1)*(2d0*n+3d0)**2*DCOSH((n+15d-1)*xi1)
+         T(4*i-1,09) = 2d0*(2d0*n+3d0)*DCOSH((n+15d-1)*xi1) + Clc*DCOSH(xi1)*(2d0*n+3d0)**2*DSINH((n+15d-1)*xi1)
          IF (i.LT.iN) THEN
-         T(4*i-1,10) =-Cla/DSINH(xi1)*n/(2d0*n+3d0)*(2d0*n+1d0)**2*DCOSH((n+05d-1)*xi1)
-         T(4*i-1,11) =-Cla/DSINH(xi1)*n/(2d0*n+3d0)*(2d0*n+1d0)**2*DSINH((n+05d-1)*xi1)
-         T(4*i-1,12) =-Cla/DSINH(xi1)*n/(2d0*n+3d0)*(2d0*n+5d0)**2*DCOSH((n+25d-1)*xi1)
-         T(4*i-1,13) =-Cla/DSINH(xi1)*n/(2d0*n+3d0)*(2d0*n+5d0)**2*DSINH((n+25d-1)*xi1)
+         T(4*i-1,10) =-Clc*n/(2d0*n+3d0)*(2d0*n+1d0)**2*DCOSH((n+05d-1)*xi1)
+         T(4*i-1,11) =-Clc*n/(2d0*n+3d0)*(2d0*n+1d0)**2*DSINH((n+05d-1)*xi1)
+         T(4*i-1,12) =-Clc*n/(2d0*n+3d0)*(2d0*n+5d0)**2*DCOSH((n+25d-1)*xi1)
+         T(4*i-1,13) =-Clc*n/(2d0*n+3d0)*(2d0*n+5d0)**2*DSINH((n+25d-1)*xi1)
          ENDIF
-         T(4*i-1,14) =-Cla/DSINH(xi1)*n*(n+1d0)*( DCOSH(xi1)* &
+         T(4*i-1,14) =-Clc*n*(n+1d0)*( DCOSH(xi1)* &
          ((2d0*n-1d0)*DEXP(-(n-05d-1)*xi1)-(2d0*n+3d0)*DEXP(-(n+15d-1)*xi1)) &
          -(n-1d0)/(2d0*n-1d0)*((2d0*n-3d0)*DEXP(-(n-15d-1)*xi1)-(2d0*n+1d0)*DEXP(-(n+05d-1)*xi1)) &
          -(n+2d0)/(2d0*n+3d0)*((2d0*n+1d0)*DEXP(-(n+05d-1)*xi1)-(2d0*n+5d0)*DEXP(-(n+25d-1)*xi1)))&
          +2d0*n*(n+1d0)      *            (DEXP(-(n-05d-1)*xi1)      -      DEXP(-(n+15d-1)*xi1) )
+
          ! (20): ξ₂
          IF (i.GT.1) THEN
-         T(4*i  ,01) =+Cla/DSINH(xi1)*(n+1d0)/(2d0*n-1d0)*(2d0*n-3d0)**2*DCOSH((n-15d-1)*xi2)
-         T(4*i  ,02) =+Cla/DSINH(xi1)*(n+1d0)/(2d0*n-1d0)*(2d0*n-3d0)**2*DSINH((n-15d-1)*xi2)
-         T(4*i  ,03) =+Cla/DSINH(xi1)*(n+1d0)/(2d0*n-1d0)*(2d0*n+1d0)**2*DCOSH((n+05d-1)*xi2)
-         T(4*i  ,04) =+Cla/DSINH(xi1)*(n+1d0)/(2d0*n-1d0)*(2d0*n+1d0)**2*DSINH((n+05d-1)*xi2)
+         T(4*i,01) =+Clc*(n+1d0)/(2d0*n-1d0)*(2d0*n-3d0)**2*DCOSH((n-15d-1)*xi2)
+         T(4*i,02) =+Clc*(n+1d0)/(2d0*n-1d0)*(2d0*n-3d0)**2*DSINH((n-15d-1)*xi2)
+         T(4*i,03) =+Clc*(n+1d0)/(2d0*n-1d0)*(2d0*n+1d0)**2*DCOSH((n+05d-1)*xi2)
+         T(4*i,04) =+Clc*(n+1d0)/(2d0*n-1d0)*(2d0*n+1d0)**2*DSINH((n+05d-1)*xi2)
          ENDIF
-         T(4*i  ,05) = 2d0*(2d0*n-1d0)*DSINH((n-05d-1)*xi2) - Cla*DCOSH(xi2)/DSINH(xi1)*(2d0*n-1d0)**2*DCOSH((n-05d-1)*xi2)
-         T(4*i  ,06) = 2d0*(2d0*n-1d0)*DCOSH((n-05d-1)*xi2) - Cla*DCOSH(xi2)/DSINH(xi1)*(2d0*n-1d0)**2*DSINH((n-05d-1)*xi2)
-         T(4*i  ,07) = 2d0*(2d0*n+3d0)*DSINH((n+15d-1)*xi2) - Cla*DCOSH(xi2)/DSINH(xi1)*(2d0*n+3d0)**2*DCOSH((n+15d-1)*xi2)
-         T(4*i  ,08) = 2d0*(2d0*n+3d0)*DCOSH((n+15d-1)*xi2) - Cla*DCOSH(xi2)/DSINH(xi1)*(2d0*n+3d0)**2*DSINH((n+15d-1)*xi2)
+         T(4*i,05) = 2d0*(2d0*n-1d0)*DSINH((n-05d-1)*xi2) - Clc*DCOSH(xi2)*(2d0*n-1d0)**2*DCOSH((n-05d-1)*xi2)
+         T(4*i,06) = 2d0*(2d0*n-1d0)*DCOSH((n-05d-1)*xi2) - Clc*DCOSH(xi2)*(2d0*n-1d0)**2*DSINH((n-05d-1)*xi2)
+         T(4*i,07) = 2d0*(2d0*n+3d0)*DSINH((n+15d-1)*xi2) - Clc*DCOSH(xi2)*(2d0*n+3d0)**2*DCOSH((n+15d-1)*xi2)
+         T(4*i,08) = 2d0*(2d0*n+3d0)*DCOSH((n+15d-1)*xi2) - Clc*DCOSH(xi2)*(2d0*n+3d0)**2*DSINH((n+15d-1)*xi2)
          IF (i.LT.iN) THEN
-         T(4*i  ,09) =+Cla/DSINH(xi1)*n/(2d0*n+3d0)*(2d0*n+1d0)**2*DCOSH((n+05d-1)*xi2)
-         T(4*i  ,10) =+Cla/DSINH(xi1)*n/(2d0*n+3d0)*(2d0*n+1d0)**2*DSINH((n+05d-1)*xi2)
-         T(4*i  ,11) =+Cla/DSINH(xi1)*n/(2d0*n+3d0)*(2d0*n+5d0)**2*DCOSH((n+25d-1)*xi2)
-         T(4*i  ,12) =+Cla/DSINH(xi1)*n/(2d0*n+3d0)*(2d0*n+5d0)**2*DSINH((n+25d-1)*xi2)
+         T(4*i,09) =+Clc*n/(2d0*n+3d0)*(2d0*n+1d0)**2*DCOSH((n+05d-1)*xi2)
+         T(4*i,10) =+Clc*n/(2d0*n+3d0)*(2d0*n+1d0)**2*DSINH((n+05d-1)*xi2)
+         T(4*i,11) =+Clc*n/(2d0*n+3d0)*(2d0*n+5d0)**2*DCOSH((n+25d-1)*xi2)
+         T(4*i,12) =+Clc*n/(2d0*n+3d0)*(2d0*n+5d0)**2*DSINH((n+25d-1)*xi2)
          ENDIF
          IF (opp) THEN
-         T(4*i  ,14) =-Cla/DSINH(xi1)*n*(n+1d0)*( DCOSH(xi2)* &
+         T(4*i,14) =-Clc*n*(n+1d0)*( DCOSH(xi2)* &
          ((2d0*n-1d0)*DEXP((n-05d-1)*xi2)-(2d0*n+3d0)*DEXP((n+15d-1)*xi2)) &
          -(n-1d0)/(2d0*n-1d0)*((2d0*n-3d0)*DEXP((n-15d-1)*xi2)-(2d0*n+1d0)*DEXP((n+05d-1)*xi2)) &
          -(n+2d0)/(2d0*n+3d0)*((2d0*n+1d0)*DEXP((n+05d-1)*xi2)-(2d0*n+5d0)*DEXP((n+25d-1)*xi2)))&
          +2d0*n*(n+1d0)      *            (DEXP((n-05d-1)*xi2)      -      DEXP((n+15d-1)*xi2) )
          ELSE
-         T(4*i  ,14) =+Cla/DSINH(xi1)*n*(n+1d0)*( DCOSH(xi2)* &
+         T(4*i,14) =+Clc*n*(n+1d0)*( DCOSH(xi2)* &
          ((2d0*n-1d0)*DEXP((n-05d-1)*xi2)-(2d0*n+3d0)*DEXP((n+15d-1)*xi2)) &
          -(n-1d0)/(2d0*n-1d0)*((2d0*n-3d0)*DEXP((n-15d-1)*xi2)-(2d0*n+1d0)*DEXP((n+05d-1)*xi2)) &
          -(n+2d0)/(2d0*n+3d0)*((2d0*n+1d0)*DEXP((n+05d-1)*xi2)-(2d0*n+5d0)*DEXP((n+25d-1)*xi2)))&
@@ -1615,12 +1625,154 @@
          GOTO 1
       ENDIF
 
-      F1 = DSINH(xi1)/3d0 * (1d0+3d0*Cla)/(1d0+2d0*Cla) * DABS(F1)  ! (22) normalized by (1)
-      F2 =-DSINH(xi2)/3d0 * (1d0+3d0*Cla)/(1d0+2d0*Cla) * DABS(F2)  ! (23) normalized by (1)
+!     Normalized by (1): —6πμaᵢVᵢ(1+2Cl/aᵢ)/(1+3Cl/aᵢ)
+      F1 = DSINH(xi1)/3d0 * (1d0+3d0*C1)/(1d0+2d0*C1) * DABS(F1)  ! (22)
+      F2 =-DSINH(xi2)/3d0 * (1d0+3d0*C2)/(1d0+2d0*C2) * DABS(F2)  ! (23)
 
       END SUBROUTINE
 ! ======================================================================                 
 
+! === Rother, Stark, Davis (2022) ======================================
+!     Rother, M. A., Stark, J. K., & Davis, R. H. (2022). Gravitational collision efficiencies of small viscous drops at finite Stokes numbers and low Reynolds numbers. International Journal of Multiphase Flow, 146, 103876.
+      SUBROUTINE RSD22(opp,mu1,mu2,eta1,eta2,a1,F1,F2,acu)
+      IMPLICIT DOUBLE PRECISION (A-H,L-Z)
+      DOUBLE PRECISION, ALLOCATABLE, DIMENSION (:,:) :: T
+      LOGICAL opp
+
+      IF ( mu1 .EQ. 0d0 ) mu1 = 1d-6
+      IF ( mu2 .EQ. 0d0 ) mu2 = 1d-6
+      CS = 1.0d0 ! Momentum accommodation (assumed)
+      mfp= 0.1d0 ! Air mean free path [μm]
+       c = a1 * DSINH(eta1)
+      a2 = a1 * DSINH(eta1) /-DSINH(eta2)
+      Clc= CS * mfp / c
+      C1 = CS * mfp / a1
+      C2 = CS * mfp / a2
+      C1 = (1d0+2d0/3d0/mu1+2d0*C1)/(1d0+1d0/mu1+3d0*C1)
+      C2 = (1d0+2d0/3d0/mu2+2d0*C2)/(1d0+1d0/mu2+3d0*C2)
+
+      F1o= 0d0
+      F2o= 0d0
+      iN = 50
+1     ALLOCATE ( T(4*iN,14) )
+       T = 0d0
+
+      DO i = 1, iN
+         n = DBLE(i)
+
+         ! (A.11)
+         T(4*i-3,08) = 1d0
+         T(4*i-3,09) = DEXP((n-05d-1)*(eta2-eta1))
+         T(4*i-3,10) = 1d0
+         T(4*i-3,11) = DEXP((n+15d-1)*(eta2-eta1))
+         T(4*i-3,14) = DEXP((n-05d-1)*-eta1)/(2d0*n-1d0)-DEXP((n+15d-1)*-eta1)/(2d0*n+3d0) ! typo
+
+         ! (A.12)
+         T(4*i-2,07) = DEXP((n-05d-1)*(eta2-eta1))
+         T(4*i-2,08) = 1d0
+         T(4*i-2,09) = DEXP((n+15d-1)*(eta2-eta1))
+         T(4*i-2,10) = 1d0
+         T(4*i-2,14) = DEXP((n-05d-1)*eta2)/(2d0*n-1d0)-DEXP((n+15d-1)*eta2)/(2d0*n+3d0) ! typo
+         IF (opp) T(4*i-2,14) = -T(4*i-2,14)
+
+         ! (A.13)
+         fct1 =-Clc*(n-1d0)/(2d0*n-1d0)
+         IF (i.GT.1) THEN
+         T(4*i-1,02) = fct1 * (n-15d-1)**2
+         T(4*i-1,03) = fct1 * (n-15d-1)**2 * DEXP((n-15d-1)*(eta2-eta1))
+         T(4*i-1,04) = fct1 * (n+05d-1)**2
+         T(4*i-1,05) = fct1 * (n+05d-1)**2 * DEXP((n+05d-1)*(eta2-eta1))
+         ENDIF
+
+         fct2 = Clc*DCOSH(eta1) + (mu1*(2d0*n+1d0))**-1
+         T(4*i-1,06) = fct2 * (n-05d-1)**2 + (n-05d-1)
+         T(4*i-1,07) = fct2 * (n-05d-1)**2 * DEXP((n-05d-1)*(eta2-eta1)) - (n-05d-1) * DEXP((n-05d-1)*(eta2-eta1))
+         T(4*i-1,08) = fct2 * (n+15d-1)**2 + (n+15d-1)
+         T(4*i-1,09) = fct2 * (n+15d-1)**2 * DEXP((n+15d-1)*(eta2-eta1)) - (n+15d-1) * DEXP((n+15d-1)*(eta2-eta1))
+
+         fct3 =-Clc*(n+2d0)/(2d0*n+3d0)
+         IF (i.LT.iN) THEN
+         T(4*i-1,10) = fct3 * (n+05d-1)**2
+         T(4*i-1,11) = fct3 * (n+05d-1)**2 * DEXP((n+05d-1)*(eta2-eta1))
+         T(4*i-1,12) = fct3 * (n+25d-1)**2
+         T(4*i-1,13) = fct3 * (n+25d-1)**2 * DEXP((n+25d-1)*(eta2-eta1))
+         ENDIF
+
+         T(4*i-1,14) = fct1 * (n-15d-1)**2 * DEXP((n-15d-1)*-eta1)/(2d0*n-3d0) &
+                     - fct1 * (n+05d-1)**2 * DEXP((n+05d-1)*-eta1)/(2d0*n+1d0) &
+                     + fct2 * (n-05d-1)**2 * DEXP((n-05d-1)*-eta1)/(2d0*n-1d0) &
+                     - fct2 * (n+15d-1)**2 * DEXP((n+15d-1)*-eta1)/(2d0*n+3d0) &
+                     + fct3 * (n+05d-1)**2 * DEXP((n+05d-1)*-eta1)/(2d0*n+1d0) &
+                     - fct3 * (n+25d-1)**2 * DEXP((n+25d-1)*-eta1)/(2d0*n+5d0) &
+                     +        (n+15d-1)    * DEXP((n+15d-1)*-eta1)/(2d0*n+3d0) &
+                     -        (n-05d-1)    * DEXP((n-05d-1)*-eta1)/(2d0*n-1d0)
+
+         ! (A.14)
+         fct1 =-Clc*(n-1d0)/(2d0*n-1d0)
+         IF (i.GT.1) THEN
+!        T(4*i,01) = fct1 * (n-15d-1)**2 * DEXP((n-15d-1)*eta2)
+         T(4*i,01) = fct1 * (n-15d-1)**2 * DEXP((n-15d-1)*(eta2-eta1)) ! typo
+         T(4*i,02) = fct1 * (n-15d-1)**2
+         T(4*i,03) = fct1 * (n+05d-1)**2 * DEXP((n+05d-1)*(eta2-eta1))
+         T(4*i,04) = fct1 * (n+05d-1)**2
+         ENDIF
+
+         fct2 = Clc*DCOSH(eta2) + (mu2*(2d0*n+1d0))**-1
+!        T(4*i,05) = fct2 * (n-05d-1)**2 * DEXP((n-05d-1)*eta2) - (n-05d-1) * DEXP((n-05d-1)*(eta2-eta1))
+         T(4*i,05) = fct2 * (n-05d-1)**2 * DEXP((n-05d-1)*(eta2-eta1)) - (n-05d-1) * DEXP((n-05d-1)*(eta2-eta1)) ! typo
+         T(4*i,06) = fct2 * (n-05d-1)**2 + (n-05d-1)
+         T(4*i,07) = fct2 * (n+15d-1)**2 * DEXP((n+15d-1)*(eta2-eta1)) - (n+15d-1) * DEXP((n+15d-1)*(eta2-eta1))
+         T(4*i,08) = fct2 * (n+15d-1)**2 + (n+15d-1)
+
+         fct3 =-Clc*(n+2d0)/(2d0*n+3d0)
+         IF (i.LT.iN) THEN
+         T(4*i,09) = fct3 * (n+05d-1)**2 * DEXP((n+05d-1)*(eta2-eta1))
+         T(4*i,10) = fct3 * (n+05d-1)**2
+         T(4*i,11) = fct3 * (n+25d-1)**2 * DEXP((n+25d-1)*(eta2-eta1))
+         T(4*i,12) = fct3 * (n+25d-1)**2
+         ENDIF
+
+         T(4*i,14) = fct1 * (n-15d-1)**2 * DEXP((n-15d-1)*eta2)/(2d0*n-3d0) &
+                   - fct1 * (n+05d-1)**2 * DEXP((n+05d-1)*eta2)/(2d0*n+1d0) &
+                   + fct2 * (n-05d-1)**2 * DEXP((n-05d-1)*eta2)/(2d0*n-1d0) &
+                   - fct2 * (n+15d-1)**2 * DEXP((n+15d-1)*eta2)/(2d0*n+3d0) &
+                   + fct3 * (n+05d-1)**2 * DEXP((n+05d-1)*eta2)/(2d0*n+1d0) & ! typo
+                   - fct3 * (n+25d-1)**2 * DEXP((n+25d-1)*eta2)/(2d0*n+5d0) &
+                   +        (n+15d-1)    * DEXP((n+15d-1)*eta2)/(2d0*n+3d0) &
+                   -        (n-05d-1)    * DEXP((n-05d-1)*eta2)/(2d0*n-1d0)
+
+         IF (opp) T(4*i,14) = -T(4*i,14)
+      ENDDO
+
+      CALL THOMAS(4*iN,7,5,T)
+
+      F1 = 0d0
+      F2 = 0d0
+      DO i = 1, iN
+         n = DBLE(i)
+        En = T(4*i-3,14)
+        Fn = T(4*i-2,14)
+        Gn = T(4*i-1,14)
+        Hn = T(4*i  ,14)
+        F1 = F1 + n*(n+1d0) * ( En * DEXP(-(n-05d-1)*eta1) + Gn * DEXP(-(n+15d-1)*eta1) )
+        F2 = F2 + n*(n+1d0) * ( Fn * DEXP( (n-05d-1)*eta2) + Hn * DEXP( (n+15d-1)*eta2) )
+      ENDDO
+      DEALLOCATE ( T )
+
+      rel = MAX(DABS(F1-F1o)/DABS(F1),DABS(F2-F2o)/DABS(F2))
+      IF ( rel .GT. acu ) THEN
+          iN = INT(1.5 * FLOAT(iN)) ! 50% increase
+         F1o = F1
+         F2o = F2
+!        WRITE(*,*) 'n_max, F1, F2, rel = ', iN,F1,F2,rel
+         GOTO 1
+      ENDIF
+
+      F1 = 2d0/3d0 * DSINH(eta1) / C1 * DABS(F1)
+      F2 =-2d0/3d0 * DSINH(eta2) / C2 * DABS(F2)
+
+      END SUBROUTINE
+! ======================================================================                 
 
 ! === Beshkov, Radoev, Ivanov (1978) ===================================
 !     Beshkov, V. N., Radoev, B. P., & Ivanov, I. B. (1978). Slow motion of two droplets and a droplet towards a fluid or solid interface. International Journal of Multiphase Flow, 4(5-6), 563-570.
@@ -1732,7 +1884,7 @@
 
            Kn = 2d0 * lmbd0 / ( a1 + a2 )
 !          Kn = lmbd0 * ( a1 + a2 ) / ( 2d0 * a1 * a2 )
-!          Kn = 3d-3
+           Kn = 1d-2
 
          dlt0 = ( s - 2d0 ) / Kn
          XA11c= XA11
@@ -1751,11 +1903,11 @@
          F2 = XA22 + (1d0+rlam)/2d0 * XA21
       ENDIF
 
-      rel = MAX(DABS(F1-F1o)/DABS(F1),DABS(F2-F2o)/DABS(F2))
+!     rel = MAX(DABS(F1-F1o)/DABS(F1),DABS(F2-F2o)/DABS(F2))
 !     IF ( rel .GT. acu ) THEN
-         n0 = INT(1.1 * FLOAT(n0)) ! 10% increase
-         F1o= F1
-         F2o= F2
+!        n0 = INT(1.1 * FLOAT(n0)) ! 10% increase
+!        F1o= F1
+!        F2o= F2
 !        WRITE(*,*) "n_max, F1, F2 = ", n0, F1, F2, rel
 !        GOTO 1
 !     ENDIF
