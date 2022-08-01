@@ -3400,9 +3400,9 @@
          K = I + 1
          S = 0D0
          DO J = KL+2, KL+KU+1
-            IF (K.GT.N) EXIT
             S = S + T(I,J) * T(K, KL+KU+2)
             K = K + 1
+            IF ( K .GT. N ) EXIT
          ENDDO
          T(I, KL+KU+2) = ( T(I, KL+KU+2) - S ) / T(I, KL+1)
       ENDDO
