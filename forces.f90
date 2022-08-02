@@ -17,8 +17,8 @@
 ! ============ I N P U T S ==============
 
         alam = 1.00d-0 ! Radius ratio
-          a1 = 1d+1    ! Larger drop radius [μm]
-         mur = 1d+2    ! Viscosity ratio
+          a1 = 1d+8    ! Larger drop radius [μm]
+         mur = 0d+0    ! Viscosity ratio
          ncl = .TRUE.  ! Non-continuum lubrication ON
 !        ncl = .FALSE. ! Non-continuum lubrication OFF
          opp = .TRUE.  ! Orientation: opposing
@@ -29,7 +29,7 @@
 ! gap size ξ = s — 2 in JO84 notation:
       xi_min = 1d-3
       xi_max = 1d+2
-      sample = 19d0
+      sample = 9d0
       dlt_xi = DLOG ( xi_max / xi_min ) / sample
 !     dlt_la = ( 1d0 - 5d-2  ) / sample
            s = 2d0 + xi_min + 3d-16
@@ -68,7 +68,7 @@
 
       CALL RSD22(opp,mur,mur,al,be,a1,F1,F2,acu)
 
-!     CALL BRI78(mur,al,F1)
+!     CALL BRI78(mur,al,F1,acu)
 
 !     CALL JO84XA(opp,ncl,s,alam,F1,F2,acu)
 !     CALL JO84YA(opp,s,alam,F1,F2,acu)
@@ -1639,8 +1639,8 @@
       DOUBLE PRECISION, ALLOCATABLE, DIMENSION (:,:) :: T
       LOGICAL opp
 
-      IF ( mu1 .EQ. 0d0 ) mu1 = 1d-6
-      IF ( mu2 .EQ. 0d0 ) mu2 = 1d-6
+      IF ( mu1 .EQ. 0d0 ) mu1 = 1d-9
+      IF ( mu2 .EQ. 0d0 ) mu2 = 1d-9
       CS = 1.0d0 ! Momentum accommodation (assumed)
       mfp= 0.1d0 ! Air mean free path [μm]
        c = a1 * DSINH(eta1)
@@ -1777,30 +1777,29 @@
 ! === Beshkov, Radoev, Ivanov (1978) ===================================
 !     Beshkov, V. N., Radoev, B. P., & Ivanov, I. B. (1978). Slow motion of two droplets and a droplet towards a fluid or solid interface. International Journal of Multiphase Flow, 4(5-6), 563-570.
 !     Kim, S., & Karrila, S. J. (2013). Microhydrodynamics: principles and selected applications. Courier Corporation.      
-      SUBROUTINE BRI78(mur,al,F1)
+      SUBROUTINE BRI78(mur,al,F1,acu)
       IMPLICIT DOUBLE PRECISION (A-H,K-Z)
 
       sumo = 0d0
-      DO i = 1, 100000
+         i = 1
+      DO WHILE ( rel .GT. acu )
          n = DBLE(i)
         Kn = n*(n+1d0)/(2d0*n-1d0)/(2d0*n+3d0) ! two typos in Beshkov et al.
 
-        N0 = 2d0*(2d0*n+1d0)*DSINH(2*al)+4d0*DCOSH(2*al)-4d0*DEXP(-(2d0*n+1d0)*al)
-        N1 = (2d0*n+1d0)**2*DCOSH(2*al)+2d0*(2d0*n+1d0)*DSINH(2*al)-(2d0*n-1d0)*(2d0*n+3d0)+4d0*DEXP(-(2d0*n+1d0)*al) ! typo in (9.39) of "Microhydrodynamics" by Kim & Karrila
+        N0 = 2d0*(2d0*n+1d0)*DSINH(2d0*al)+4d0*DCOSH(2d0*al)-4d0*DEXP(-(2d0*n+1d0)*al)
+        N1 = (2d0*n+1d0)**2*DCOSH(2d0*al)+2d0*(2d0*n+1d0)*DSINH(2d0*al)-(2d0*n-1d0)*(2d0*n+3d0)+4d0*DEXP(-(2d0*n+1d0)*al) ! typo in (9.39) of "Microhydrodynamics" by Kim & Karrila
         D0 = 4d0*DSINH((n-1d0/2d0)*al)*DSINH((n+3d0/2d0)*al)
-        D1 = 2d0*DSINH((2d0*n+1d0)*al)-(2d0*n+1d0)*DSINH(2*al) ! next typo in Beshkov et al.
+        D1 = 2d0*DSINH((2d0*n+1d0)*al)-(2d0*n+1d0)*DSINH(2d0*al) ! next typo in Beshkov et al.
 
       suma = sumo + Kn*( N0 + mur * N1 ) / ( D0 + mur * D1 )
 
-         criterion = DABS((suma-sumo))/DABS(suma)
-         IF ( criterion .LT. 1d-10 ) THEN
-!           WRITE(*,*) "n_max, sum = ", i,suma
-            GOTO 1
-         ENDIF
-         sumo = suma
+       rel = DABS(suma-sumo)/DABS(sumo)
+      sumo = suma
+         i = i + 1
       ENDDO
 
-1     F1 = 2d0/3d0*DSINH(al) * suma  ! normalized by —6πμaV
+!     Normalized by —4πμa₁V₁(1.5μᵣ+1)/(μᵣ+1)
+      F1 = 2d0/3d0*DSINH(al) * suma * (mur+1d0)/(mur+2d0/3d0)
 
       END SUBROUTINE
 ! ======================================================================
