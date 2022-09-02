@@ -7,9 +7,10 @@
       PROGRAM HYDROFORCES
 !     -mcmodel=medium -fopenmp export OMP_NUM_THREADS=<n>
       IMPLICIT DOUBLE PRECISION (A-H,K-Z)
-      DIMENSION fg(4,4)
       PARAMETER ( acu = 1d-9 )
+      DIMENSION fg(4,4)
       LOGICAL opp, ncl
+      INTEGER sample
 
       CALL CPU_TIME(t0)
       OPEN (1, file='output.dat')
@@ -17,8 +18,8 @@
 ! ============ I N P U T S ==============
 
         alam = 1.00d-0 ! Radius ratio
-          a1 = 1d+8    ! Larger drop radius [μm]
-         mur = 0d+0    ! Viscosity ratio
+          a1 = 1d+1    ! Larger drop radius [μm]
+         mur = 1d+2    ! Viscosity ratio
          ncl = .TRUE.  ! Non-continuum lubrication ON
 !        ncl = .FALSE. ! Non-continuum lubrication OFF
          opp = .TRUE.  ! Orientation: opposing
@@ -29,12 +30,12 @@
 ! gap size ξ = s — 2 in JO84 notation:
       xi_min = 1d-3
       xi_max = 1d+2
-      sample = 9d0
-      dlt_xi = DLOG ( xi_max / xi_min ) / sample
+      sample = 10
+      dlt_xi = DLOG ( xi_max / xi_min ) / DBLE(sample-1)
 !     dlt_la = ( 1d0 - 5d-2  ) / sample
            s = 2d0 + xi_min + 3d-16
 ! ======================================= 
-      DO i = 1, INT(sample)+1
+      DO i = 1, sample
       CALL MAP(s,alam,al,be) ! (s,λ) —> (α,β)
 
 ! ============ M E T H O D ==============
@@ -84,8 +85,8 @@
 !     CALL GMS20b(al,F1) ! wrong ?
 
 ! ============ O U T P U T ==============
-      WRITE(1,*) s-2d0, F1!, F2, T1, T2
-!     WRITE(1,*) F1, F2
+!     WRITE(1,*) s-2d0, F1!, F2, T1, T2
+      WRITE(1,*) s-2d0, F1
       WRITE(*,*) s-2d0, F1, F2!, T1, T2
 !     WRITE(1,*) alam, F1, F2
 !     WRITE(*,*) alam, F1, F2, T1, T2
@@ -3399,9 +3400,9 @@
          K = I + 1
          S = 0D0
          DO J = KL+2, KL+KU+1
+            IF ( K .GT. N ) EXIT
             S = S + T(I,J) * T(K, KL+KU+2)
             K = K + 1
-            IF ( K .GT. N ) EXIT
          ENDDO
          T(I, KL+KU+2) = ( T(I, KL+KU+2) - S ) / T(I, KL+1)
       ENDDO
