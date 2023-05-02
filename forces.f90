@@ -4,8 +4,12 @@
 !     Institute of Meteorology and Water Management — National Research Institute
 !     Podleśna 61, 01-673 Warsaw, Poland
 
+!     Compile using:
+!     -mcmodel=medium -w
+!     For OpenMP:
+!     -fopenmp export OMP_NUM_THREADS=<n>
+
       PROGRAM HYDROFORCES
-!     -mcmodel=medium -fopenmp export OMP_NUM_THREADS=<n>
       IMPLICIT DOUBLE PRECISION (A-H,K-Z)
       PARAMETER ( acu = 1d-9 )
       DIMENSION fg(4,4)
@@ -18,7 +22,7 @@
 ! ============ I N P U T S ==============
 
         alam = 1.00d-0 ! Radius ratio
-          a1 = 1d+1    ! Larger drop radius [μm]
+          a1 = 3d+1    ! Larger drop radius [μm]
          mur = 1d+2    ! Viscosity ratio
          ncl = .TRUE.  ! Non-continuum lubrication ON
 !        ncl = .FALSE. ! Non-continuum lubrication OFF
@@ -28,7 +32,7 @@
 ! ========= L O G   D I S T R. ========== 
 ! Logarithmic distribution of normalized
 ! gap size ξ = s — 2 in JO84 notation:
-      xi_min = 1d-3
+      xi_min = 1d-6
       xi_max = 1d+2
       sample = 10
       dlt_xi = DLOG ( xi_max / xi_min ) / DBLE(sample-1)
@@ -40,18 +44,18 @@
 
 ! ============ M E T H O D ==============
 
-!     CALL J1915(opp,al,be,T1,T2,acu) ! limit exists
+!     CALL J1915(opp,al,be,T1,T2,acu)
 
 !     CALL SJ26M61EXP(opp,al,be,F1,F2,acu)
 !     CALL SJ1926IMP(opp,al,be,F1,F2,acu)
 
-!     CALL H1937vdW(s,alam,1d1,5d-13,F1,F2) ! wrong: needs velocity
+!     CALL H1937vdW(s,alam,1d1,5d-13,F1,F2)
 
-!     CALL GCB66T(al,F1,T1,acu) ! limit exists
-!     CALL GCB66R(al,F1,T1,acu) ! limit exists for force only
+!     CALL GCB66T(al,F1,T1,acu)
+!     CALL GCB66R(al,F1,T1,acu)
 
-!     CALL ON69T(al,F1,T1,acu) ! no limit
-!     CALL ON69R(al,F1,T1,acu) ! no limit
+!     CALL ON69T(al,F1,T1,acu)
+!     CALL ON69R(al,F1,T1,acu)
 
 !     CALL FREEROTEQUAL(opp,al,F1,acu)
 
@@ -67,14 +71,14 @@
 
 !     CALL RM74(opp,al,be,a1,F1,F2,acu)
 
-      CALL RSD22(opp,mur,mur,al,be,a1,F1,F2,acu)
+!     CALL RSD22(opp,mur,mur,al,be,a1,F1,F2,acu)
 
 !     CALL BRI78(mur,al,F1,acu)
 
-!     CALL JO84XA(opp,ncl,s,alam,F1,F2,acu)
-!     CALL JO84YA(opp,s,alam,F1,F2,acu)
-!     CALL JO84YB(opp,s,alam,F1,F2,T1,T2,acu)
-!     CALL JO84YC(opp,s,alam,T1,T2,acu) ! fix CY12
+!     CALL JO84XA(opp,s,alam,ncl,a1,F1,F2,acu)
+!     CALL JO84YA(opp,s,alam,ncl,a1,F1,F2,acu)
+      CALL JO84YB(opp,s,alam,ncl,a1,F1,F2,T1,T2,acu)
+!     CALL JO84YC(opp,s,alam,ncl,a1,T1,T2,acu)
 !     CALL JO84XC(opp,s,alam,T1,T2,acu)
 
 !     CALL WAG05ISMX(opp,mur,s,alam,F1,F2)
@@ -85,11 +89,9 @@
 !     CALL GMS20b(al,F1) ! wrong ?
 
 ! ============ O U T P U T ==============
-!     WRITE(1,*) s-2d0, F1!, F2, T1, T2
-      WRITE(1,*) s-2d0, F1
-      WRITE(*,*) s-2d0, F1, F2!, T1, T2
-!     WRITE(1,*) alam, F1, F2
+      WRITE(*,*) s-2d0, F1, F2, T1, T2
 !     WRITE(*,*) alam, F1, F2, T1, T2
+      WRITE(1,*) s-2d0, F1, F2, T1, T2
 ! ======================================= 
 
 !     STOP
@@ -451,6 +453,7 @@
 !     Hamaker, H. C. (1937). The London—van der Waals attraction between spherical particles. physica, 4(10), 1058-1072.
       SUBROUTINE H1937vdW(s,alam,aa,A,F1,F2)
       IMPLICIT DOUBLE PRECISION (A-H,K-Z)
+!     Important: output is force not resistance (force/velocity) unlike other subroutines
 
 !     A  = 5d-13    ! Hamaker constant g.cm2/s2 
       a1 = aa / 1d4 ! radius in cm
@@ -780,6 +783,9 @@
       DOUBLE PRECISION :: fg(4,4)
       LOGICAL opp
 
+      alam =-DSINH(al)/DSINH(be)
+      rlam = 1d0/alam
+
       F1o= 0d0
       F2o= 0d0
       T1o= 0d0
@@ -864,6 +870,12 @@
 !     IF ( j .EQ. 2 ) WRITE(*,*)"f12,f11,g12,g11=",f12,f11,g12,g11
 
       IF ( j .EQ. 1 ) THEN
+
+          YB11 = f11*3d0/2d0
+          YB12 = f12*6d0/(1d0+rlam)**2
+          YC11 = g11
+          YC21 =-g12*8d0/(1d0+rlam)**3
+              
        fg(1,1) = f11
        fg(1,2) = f12
        fg(1,3) = g11
@@ -882,6 +894,11 @@
            tmp=-al
            al =-be
            be = tmp
+
+         YB22 =-f11*3d0/2d0
+         YB21 =-f12*6d0/(1d0+alam)**2
+         YC22 = g11
+         YC12 =-g12*8d0/(1d0+alam)**3
 
 !     Normalization: —6πμa²Ω  &  —8πμa³Ω
       IF (opp) THEN
@@ -906,6 +923,9 @@
 !       WRITE(*,*) "n_max, F1, F2, T1, T2 = ", iN,F1,F2,T1,T2,rel
         GOTO 1
       ENDIF
+
+!     WRITE(1,*) YB11, YB12, YB21, YB22
+!     WRITE(1,*) YC11, YC12, YC21, YC22
 
       END SUBROUTINE
 ! ======================================================================
@@ -1808,14 +1828,12 @@
 ! === Jeffrey & Onishi (1984) - XA =====================================
 !     Jeffrey, D. J., & Onishi, Y. (1984). Calculation of the resistance and mobility functions for two unequal rigid spheres in low-Reynolds-number flow. Journal of Fluid Mechanics, 139, 261-290.
 !     Townsend, A. K. (2018). Generating, from scratch, the near-field asymptotic forms of scalar resistance functions for two unequal rigid spheres in low-Reynolds-number flow. arXiv preprint arXiv:1802.08226.      
-      SUBROUTINE JO84XA(opp,ncl,s,alam,F1,F2,acu)
+      SUBROUTINE JO84XA(opp,s,alam,ncl,a1,F1,F2,acu)
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
       DOUBLE PRECISION, ALLOCATABLE, DIMENSION(:) :: fm1,fm2
-      DOUBLE PRECISION Kn, lmbd0
+      DOUBLE PRECISION Kn, mfp
       LOGICAL opp, ncl
       
-!     IF ( acu .LT. 1d-6 ) WRITE(*,*) "Consider decreasing accuracy!"
-
       rlam = 1d0/alam
        F1o = 0d0
        F2o = 0d0
@@ -1878,13 +1896,11 @@
       XA21 = XA21 *-2.d0/(1.d0+rlam)
 
       IF ( ncl ) THEN
-        lmbd0 = 1d-5 ! cm (0.1 micron)
-           a1 = 10d0 / 1d4
+          mfp = 0.1d0 ! Air mean free path [μm]
            a2 = alam * a1
-
-           Kn = 2d0 * lmbd0 / ( a1 + a2 )
-!          Kn = lmbd0 * ( a1 + a2 ) / ( 2d0 * a1 * a2 )
-           Kn = 1d-2
+           Kn = 2d0 * mfp / ( a1 + a2 )
+!          Kn = mfp * ( a1 + a2 ) / ( 2d0 * a1 * a2 )
+!          Kn = 1d-2
 
          dlt0 = ( s - 2d0 ) / Kn
          XA11c= XA11
@@ -2095,16 +2111,16 @@
 
 ! === Jeffrey & Onishi (1984) - YA =====================================
 !     Jeffrey, D. J., & Onishi, Y. (1984). Calculation of the resistance and mobility functions for two unequal rigid spheres in low-Reynolds-number flow. Journal of Fluid Mechanics, 139, 261-290.
-      SUBROUTINE JO84YA(opp,s,alam,F1,F2,acu)
+      SUBROUTINE JO84YA(opp,s,alam,ncl,a1,F1,F2,acu)
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
       DOUBLE PRECISION, ALLOCATABLE, DIMENSION(:) :: fm1,fm2
-      LOGICAL opp
-
-      IF ( acu .LT. 1d-6 ) WRITE(*,*) "Consider decreasing accuracy!"
+      DOUBLE PRECISION Kn, mfp
+      LOGICAL opp, ncl
 
       rlam = 1d0/alam
        F1o = 0d0
        F2o = 0d0
+        pi = 4d0 * DATAN(1d0)
         n0 = 100
 1     ALLOCATE ( fm1(0:n0), fm2(0:n0) )
       CALL coeffYA(n0,alam,rlam,fm1,fm2)
@@ -2159,6 +2175,26 @@
       YA21 = YA21 + g22*DLOG(sd) + g32*sc*DLOG(sd) + 4.d0*g32/s
       YA12 =-YA12 * 2d0/(1d0+alam)
       YA21 =-YA21 * 2d0/(1d0+rlam)
+
+      IF ( ncl ) THEN
+          mfp = 0.1d0 ! Air mean free path [μm]
+           a2 = alam * a1
+!          Kn = 2d0 * mfp / ( a1 + a2 )
+!          Kn = mfp * ( a1 + a2 ) / ( 2d0 * a1 * a2 )
+           Kn = 1d-2
+
+         dlt0 = ( s - 2d0 ) / Kn
+            Q = ( -0.1580d0 - 0.20000d0 * DLOG ( dlt0**-1 + 0.65632d0 ) ) / ( 1d0 + 0.16330d0 * dlt0 )
+            W = ( -1.6448d0 - DSQRT(pi) * DLOG ( dlt0**-1 + 0.59098d0 ) ) / ( 1d0 + 0.19167d0 * dlt0 )
+           A8 = W / (3d0*DSQRT(pi)) + Q * ( (1d0-alam)/(1d0+alam) )**2
+         YA11 = YA11 + (1d0+rlam)**-1 * A8
+         YA22 = YA22 + (1d0+alam)**-1 * A8
+         YA12 = YA12 -  2d0*alam / (1d0+alam)**2 * A8
+         YA21 = YA12
+      ENDIF
+!     WRITE(*,*)"YAxx",YA11,YA12,YA21,YA22
+!     WRITE(*,*),'ξ,YA## =', s-2d0, YA11, (1d0+alam)/2d0*YA12, (1d0+rlam)/2d0*YA21, YA22
+!     WRITE(1,*)DLOG(s-2d0), YA11, YA12, YA21, YA22
 
       IF (opp) THEN
          F1 = YA11 - (1d0+alam)/2d0 * YA12
@@ -2302,16 +2338,16 @@
 ! === Jeffrey & Onishi (1984) - YB =====================================
 !     Jeffrey, D. J., & Onishi, Y. (1984). Calculation of the resistance and mobility functions for two unequal rigid spheres in low-Reynolds-number flow. Journal of Fluid Mechanics, 139, 261-290.
 !     Townsend, A. K. (2018). Generating, from scratch, the near-field asymptotic forms of scalar resistance functions for two unequal rigid spheres in low-Reynolds-number flow. arXiv preprint arXiv:1802.08226.
-      SUBROUTINE JO84YB(opp,s,alam,F1,F2,T1,T2,acu)
+      SUBROUTINE JO84YB(opp,s,alam,ncl,a1,F1,F2,T1,T2,acu)
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
       DOUBLE PRECISION, ALLOCATABLE, DIMENSION(:) :: fm1,fm2
-      LOGICAL opp
-
-      IF ( acu .LT. 1d-6 ) WRITE(*,*) "Consider decreasing accuracy!"
+      DOUBLE PRECISION Kn, mfp
+      LOGICAL opp, ncl
 
       rlam = 1d0/alam
        F1o = 0d0
        F2o = 0d0
+        pi = 4d0 * DATAN(1d0)
         n0 = 100
 1     ALLOCATE ( fm1(0:n0), fm2(0:n0) )
       CALL coeffYB(n0,alam,rlam,fm1,fm2)
@@ -2365,28 +2401,54 @@
       YB12 = YB12 - g21*DLOG(sc) - g31*sc*DLOG(sc)
       YB21 = YB21 - g22*DLOG(sc) - g32*sc*DLOG(sc)
       YB12 = YB12 *-4d0/(1d0+alam)**2
-      YB21 = YB21 *-4d0/(1d0+rlam)**2
+      YB21 = YB21 * 4d0/(1d0+rlam)**2
+      YB22 =-YB22
 
-      IF (opp) THEN
-         F1 = 2d0/3d0 * (-YB11 - (1d0+alam)**2/4d0 * YB21 )
-         F2 = 2d0/3d0 * ( YB22 + (1d0+rlam)**2/4d0 * YB12 )
-         T1 = 1d0/2d0 * (-YB11 + (1d0+alam)**2/4d0 * YB12 )
-         T2 = 1d0/2d0 * ( YB22 - (1d0+rlam)**2/4d0 * YB21 )
+      IF ( ncl ) THEN
+          mfp = 0.1d0 ! Air mean free path [μm]
+           a2 = alam * a1
+!          Kn = 2d0 * mfp / ( a1 + a2 )
+!          Kn = mfp * ( a1 + a2 ) / ( 2d0 * a1 * a2 )
+           Kn = 1d-2
+
+         dlt0 = ( s - 2d0 ) / Kn
+            Q = ( -0.1580d0 - 0.20000d0 * DLOG ( dlt0**-1 + 0.65632d0 ) ) / ( 1d0 + 0.16330d0 * dlt0 )
+            W = ( -1.6448d0 - DSQRT(pi) * DLOG ( dlt0**-1 + 0.59098d0 ) ) / ( 1d0 + 0.19167d0 * dlt0 )
+          A10 = W / (4d0*DSQRT(pi)) + Q * 3d0/4d0
+         YB11 = YB11 + 2d0/(1d0+rlam) * ( -W / (4d0*DSQRT(pi)) - Q * (1d0-alam)/(1d0+alam) * 3d0/4d0 )
+         YB22 = YB22 + 2d0/(1d0+alam) * (  W / (4d0*DSQRT(pi)) - Q * (1d0-alam)/(1d0+alam) * 3d0/4d0 )
+         YB12 = YB12 + 8d0*alam/(1d0+alam)**3 * (  W / (4d0*DSQRT(pi)) + Q * (1d0-alam)/(1d0+alam) * 3d0/4d0 )
+         YB21 = YB21 + 8d0*rlam/(1d0+rlam)**3 * ( -W / (4d0*DSQRT(pi)) + Q * (1d0-alam)/(1d0+alam) * 3d0/4d0 )
+      ENDIF
+!     WRITE(1,*) YB11, YB12, YB21, YB22
+
+!     WRITE(*,*)"2/3 * YB11, 2/3 * YB22", 2d0/3d0 * YB11, 2d0/3d0 * YB22
+!     WRITE(*,*)"2/3 * (1d0+rlam)**2/4d0 * YB12", 2d0/3d0 * (1d0+rlam)**2/4d0 * YB12
+!     WRITE(*,*)"2/3 * (1d0+alam)**2/4d0 * YB21", 2d0/3d0 * (1d0+alam)**2/4d0 * YB21
+!     WRITE(*,*)"1/2 * YB11, 1/2 * YB22", 1d0/2d0 * YB11, 1d0/2d0 * YB22
+!     WRITE(*,*)"1/2 * (1d0+alam)**2/4d0 * YB12", 1d0/2d0 * (1d0+alam)**2/4d0 * YB12
+!     WRITE(*,*)"1/2 * (1d0+rlam)**2/4d0 * YB21", 1d0/2d0 * (1d0+rlam)**2/4d0 * YB21
+
+      IF (opp) THEN ! must be wrong take a look later
+         F1 =-2d0/3d0 * ( YB11 - (1d0+alam)**2/4d0 * YB21 )
+         F2 =-2d0/3d0 * ( YB22 - (1d0+rlam)**2/4d0 * YB12 )
+         T1 =-1d0/2d0 * ( YB11 - (1d0+alam)**2/4d0 * YB12 )
+         T2 =-1d0/2d0 * ( YB22 - (1d0+rlam)**2/4d0 * YB21 )
       ELSE
-         F1 = 2d0/3d0 * (-YB11 + (1d0+alam)**2/4d0 * YB21 )
-         F2 = 2d0/3d0 * ( YB22 - (1d0+rlam)**2/4d0 * YB12 )
-         T1 = 1d0/2d0 * (-YB11 - (1d0+alam)**2/4d0 * YB12 )
-         T2 = 1d0/2d0 * ( YB22 + (1d0+rlam)**2/4d0 * YB21 )
+         F1 =-2d0/3d0 * ( YB11 + (1d0+alam)**2/4d0 * YB21 )
+         F2 =-2d0/3d0 * ( YB22 + (1d0+rlam)**2/4d0 * YB12 )
+         T1 =-1d0/2d0 * ( YB11 + (1d0+alam)**2/4d0 * YB12 )
+         T2 =-1d0/2d0 * ( YB22 + (1d0+rlam)**2/4d0 * YB21 )
       ENDIF
 
-      rel = MAX(DABS(F1-F1o)/DABS(F1),DABS(F2-F2o)/DABS(F2))
-      IF ( rel .GT. acu ) THEN
-         n0 = INT(1.1 * FLOAT(n0)) ! 10% increase
-         F1o= F1
-         F2o= F2
+!     rel = MAX(DABS(F1-F1o)/DABS(F1),DABS(F2-F2o)/DABS(F2))
+!     IF ( rel .GT. acu ) THEN
+!        n0 = INT(1.1 * FLOAT(n0)) ! 10% increase
+!        F1o= F1
+!        F2o= F2
 !        WRITE(*,*) "n_max, F1, F2, T1, T2 = ", n0, F1, F2, T1, T2, rel
-         GOTO 1
-      ENDIF
+!        GOTO 1
+!     ENDIF
 
 !     JO84: (seems wrong)      
 !     BY11 = BY11
@@ -2530,16 +2592,16 @@
 !     Jeffrey, D. J., & Onishi, Y. (1984). Calculation of the resistance and mobility functions for two unequal rigid spheres in low-Reynolds-number flow. Journal of Fluid Mechanics, 139, 261-290.
 !     Townsend, A. K. (2018). Generating, from scratch, the near-field asymptotic forms of scalar resistance functions for two unequal rigid spheres in low-Reynolds-number flow. arXiv preprint arXiv:1802.08226.
 !     http://ryuon.sourceforge.net/twobody/errata.html
-      SUBROUTINE JO84YC(opp,s,alam,T1,T2,acu)
+      SUBROUTINE JO84YC(opp,s,alam,ncl,a1,T1,T2,acu)
       IMPLICIT DOUBLE PRECISION (A-H,O-Z)
       DOUBLE PRECISION, ALLOCATABLE, DIMENSION(:) :: fm1,fm2
-      LOGICAL opp
-
-      IF ( acu .LT. 1d-6 ) WRITE(*,*) "Consider decreasing accuracy!"
+      DOUBLE PRECISION Kn, mfp
+      LOGICAL opp, ncl
 
       rlam = 1d0/alam
        T1o = 0d0
        T2o = 0d0
+        pi = 4d0 * DATAN(1d0)
         n0 = 150
 1     ALLOCATE ( fm1(0:n0), fm2(0:n0) )
       CALL coeffYC(n0,alam,rlam,fm1,fm2)
@@ -2607,7 +2669,24 @@
       YC12 = YC12 * 8d0/(1d0+alam)**3
       YC21 = YC21 * 8d0/(1d0+rlam)**3
 
-!     WRITE(*,*)"YC11,YC12,YC21,YC22",YC11,YC12,YC21,YC22
+      IF ( ncl ) THEN
+          mfp = 0.1d0 ! Air mean free path [μm]
+           a2 = alam * a1
+!          Kn = 2d0 * mfp / ( a1 + a2 )
+!          Kn = mfp * ( a1 + a2 ) / ( 2d0 * a1 * a2 )
+           Kn = 1d-2
+
+         dlt0 = ( s - 2d0 ) / Kn
+            Q = ( -0.1580d0 - 0.20000d0 * DLOG ( dlt0**-1 + 0.65632d0 ) ) / ( 1d0 + 0.16330d0 * dlt0 )
+            W = ( -1.6448d0 - DSQRT(pi) * DLOG ( dlt0**-1 + 0.59098d0 ) ) / ( 1d0 + 0.19167d0 * dlt0 )
+          A10 = W / (4d0*DSQRT(pi)) + Q * 3d0/4d0
+         YC11 = YC11 + (1d0+rlam)**-1 * A10
+         YC22 = YC22 + (1d0+alam)**-1 * A10
+         YC12 = YC12 +  8d0*alam**2/(1d0+alam)**4 * ( W / (4d0*DSQRT(pi)) - Q * 3d0/4d0 )
+         YC21 = YC12
+      ENDIF
+      WRITE(*,*)DLOG(s-2d0), YC11, YC12, YC21, YC22
+
 !     WRITE(*,*)"YC11, (1d0+alam)**3/8d0 * YC12",YC11, (1d0+alam)**3/8d0 * YC12
 !     WRITE(*,*)"YC22, (1d0+rlam)**3/8d0 * YC21",YC22, (1d0+rlam)**3/8d0 * YC21
 
@@ -2620,13 +2699,13 @@
       ENDIF
 
       rel = MAX(DABS(T1-T1o)/DABS(T1),DABS(T2-T2o)/DABS(T2))
-      IF ( rel .GT. acu ) THEN
+!     IF ( rel .GT. acu ) THEN
          n0 = INT(1.1 * FLOAT(n0)) ! 10% increase
          T1o= T1
          T2o= T2
 !        WRITE(*,*) "n_max, T1, T2 = ", n0, T1, T2, rel
-         GOTO 1
-      ENDIF
+!        GOTO 1
+!     ENDIF
 
       CY11 = CY11 + 1d0
       CY22 = CY22 + 1d0
