@@ -21,8 +21,8 @@
 
 ! ============ I N P U T S ==============
 
-        alam = 1.00d-0 ! Radius ratio
-          a1 = 3d+1    ! Larger drop radius [μm]
+        alam = 2.50d-0 ! Radius ratio
+          a1 = 1d+0    ! Larger drop radius [μm]
          mur = 1d+2    ! Viscosity ratio
          ncl = .TRUE.  ! Non-continuum lubrication ON
 !        ncl = .FALSE. ! Non-continuum lubrication OFF
@@ -49,7 +49,7 @@
 !     CALL SJ26M61EXP(opp,al,be,F1,F2,acu)
 !     CALL SJ1926IMP(opp,al,be,F1,F2,acu)
 
-!     CALL H1937vdW(s,alam,1d1,5d-13,F1,F2)
+!     CALL H37(s,alam,1d1,5d-13,F1,F2) ! vdW forces
 
 !     CALL GCB66T(al,F1,T1,acu)
 !     CALL GCB66R(al,F1,T1,acu)
@@ -77,13 +77,15 @@
 
 !     CALL JO84XA(opp,s,alam,ncl,a1,F1,F2,acu)
 !     CALL JO84YA(opp,s,alam,ncl,a1,F1,F2,acu)
-      CALL JO84YB(opp,s,alam,ncl,a1,F1,F2,T1,T2,acu)
+!     CALL JO84YB(opp,s,alam,ncl,a1,F1,F2,T1,T2,acu)
 !     CALL JO84YC(opp,s,alam,ncl,a1,T1,T2,acu)
 !     CALL JO84XC(opp,s,alam,T1,T2,acu)
 
 !     CALL WAG05ISMX(opp,mur,s,alam,F1,F2)
 !     CALL WAG05ISMY(opp,mur,s,alam,F1,F2)
 !     CALL ROT(opp,s,alam,F1,F2) ! not done
+
+      CALL KCSB14(a1,a1*alam,2d2,2d2,8d1,8d1,al,be,F1,F2,acu) ! electrostatic forces
 
 !     CALL GMS20a(al,be,F1,F2)
 !     CALL GMS20b(al,F1) ! wrong ?
@@ -451,7 +453,7 @@
 
 ! === Hamaker (1937) - van der Waals ===================================
 !     Hamaker, H. C. (1937). The London—van der Waals attraction between spherical particles. physica, 4(10), 1058-1072.
-      SUBROUTINE H1937vdW(s,alam,aa,A,F1,F2)
+      SUBROUTINE H37(s,alam,aa,A,F1,F2)
       IMPLICIT DOUBLE PRECISION (A-H,K-Z)
 !     Important: output is force not resistance (force/velocity) unlike other subroutines
 
@@ -3133,6 +3135,100 @@
       ENDIF
 
       F2 =-A1
+
+      END SUBROUTINE
+! ======================================================================
+
+! === Khachatourian, Chan, Stace, Bichoutskaia (2014) ==================
+!     Khachatourian, A., Chan, H. K., Stace, A. J., & Bichoutskaia, E. (2014). Electrostatic force between a charged sphere and a planar surface: A general solution for dielectric materials. The Journal of chemical physics, 140(7).
+      SUBROUTINE KCSB14(a1,a2,qq1,qq2,k1,k2,et1,et2,F12,F21,acu)
+      IMPLICIT DOUBLE PRECISION (A-H,K-Z)
+      DOUBLE PRECISION, ALLOCATABLE, DIMENSION (:,:) :: T
+
+      pi = 4d0*DATAN(1d0)
+      e  = 1.602176634d-19 ! C
+      e0 = 8.854187817d-12 ! F/m
+      k  = 1d0/(4d0*pi*e0) ! m/F
+      k0 = 1d0
+!     k1 = 8d1
+!     k2 = 8d1
+      km = 1d0
+      q1 = qq1*e   ! C
+      q2 = qq2*e   ! C
+      a1 = a1*1d-6 ! m
+      a2 = a2*1d-6 ! m
+!     a1 = 1000d-9 ! m
+!     a2 = 2500d-9 ! m
+!     ss = 100d-9  ! m
+
+       et2 = -et2
+
+!      eps = ss / a1
+!     alam = a2 / a1
+!   coshal = 1d0 + eps   * ( alam + eps / 2d0 ) / ( 1d0 + alam + eps )
+!   coshbe = 1d0 + eps/alam*( 1d0 + eps / 2d0 ) / ( 1d0 + alam + eps )
+!      et1 = DACOSH(coshal)
+!      et2 = DACOSH(coshbe)
+         c = a1 * DSINH(et1)
+
+      F12o = 0d0
+      F21o = 0d0
+        iN = 100
+1     ALLOCATE ( T(2*iN+2,8) )
+         T = 0d0
+
+      DO i = 1, iN+1
+         n = DBLE(i-1)
+        fm = DEXP(-(n-05d-1)*(et1+et2))
+        fn = DEXP(-(n+05d-1)*(et1+et2))
+        fp = DEXP(-(n+15d-1)*(et1+et2))
+
+         IF (i.GT.1) THEN
+            T(2*i-1,2) = -5d-1*n*(km+k1)
+            T(2*i-1,3) =  5d-1*n*(km-k1)*fm
+            T(2*i  ,1) =  5d-1*n*(km-k2)*fm
+            T(2*i  ,2) = -5d-1*n*(km+k2)
+         ENDIF
+            T(2*i-1,4) =  (5d-1+n)*DCOSH(et1)*(km+k1) + 5d-1*DSINH(et1) *(km-k1)
+            T(2*i-1,5) =(-(5d-1+n)*DCOSH(et1)         + 5d-1*DSINH(et1))*(km-k1)*fn
+            T(2*i  ,3) =(-(5d-1+n)*DCOSH(et2)         + 5d-1*DSINH(et2))*(km-k2)*fn
+            T(2*i  ,4) =  (5d-1+n)*DCOSH(et2)*(km+k2) + 5d-1*DSINH(et2) *(km-k2)
+         IF (i.LT.iN+1) THEN
+            T(2*i-1,6) = -5d-1*(n+1d0)*(km+k1)
+            T(2*i-1,7) =  5d-1*(n+1d0)*(km-k1)*fp
+            T(2*i  ,5) =  5d-1*(n+1d0)*(km-k2)*fp
+            T(2*i  ,6) = -5d-1*(n+1d0)*(km+k2)
+         ENDIF
+            T(2*i-1,8) = DSQRT(2d0)*c*DEXP(-(n+5d-1)*et1)*k*q1/a1**2
+            T(2*i  ,8) = DSQRT(2d0)*c*DEXP(-(n+5d-1)*et2)*k*q2/a2**2
+      ENDDO
+
+      CALL THOMAS(2*iN+2,3,3,T)
+
+!        n = 0:
+        fn = DEXP(-5d-1*(et1+et2))
+       F12 = fn * 5d-1 * ( -T(1,8) + T(3,8)*DEXP(-et1) ) * T(2,8)
+       F21 = fn * 5d-1 * ( -T(2,8) + T(4,8)*DEXP(-et2) ) * T(1,8)
+!        n = 1, N:
+      DO i = 1, iN+1
+         n = DBLE(i)
+        fn = DEXP(-(n+5d-1)*(et1+et2))
+       F12 = F12 + fn * ( n/2d0*T(2*i-1,8)*DEXP( et1) - (n+5d-1)*T(2*i+1,8) &
+                 +  (n+1d0)/2d0*T(2*i+3,8)*DEXP(-et1) ) * T(2*i+2,8)
+       F21 = F21 + fn * ( n/2d0*T(2*i  ,8)*DEXP( et2) - (n+5d-1)*T(2*i+2,8) &
+                 +  (n+1d0)/2d0*T(2*i+4,8)*DEXP(-et2) ) * T(2*i+1,8)
+      ENDDO
+      DEALLOCATE ( T )
+      F12 = -F12/k
+      F21 = -F21/k
+      rel = DABS(F12-F12o)/DABS(F12)
+      IF ( rel .GT. acu ) THEN
+           iN = INT(1.5 * FLOAT(iN)) ! 50% increase
+         F12o = F12
+         F21o = F21
+!        WRITE(*,*) 'n_max, F12, rel = ', iN,F12,rel
+         GOTO 1
+      ENDIF
 
       END SUBROUTINE
 ! ======================================================================
