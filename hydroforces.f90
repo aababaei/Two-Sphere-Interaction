@@ -62,7 +62,7 @@
 !     CALL ONM70R(opp,al,be,fg,F1,F2,T1,T2,acu)
 !     CALL ONM70T(opp,al,be,fg,F1,F2,T1,T2,acu)
 
-!     CALL FREEROTATION(opp,al,be,F1,F2,acu)
+      CALL FREEROTATION(opp,al,be,F1,F2,acu)
 
 !     CALL WW72(mur,al,F1,acu)
 
@@ -71,7 +71,7 @@
 
 !     CALL RM74(opp,al,be,a1,F1,F2,acu)
 
-      CALL RSD22(opp,mur,mur,al,be,a1,F1,F2,acu)
+!     CALL RSD22(opp,mur,mur,al,be,a1,F1,F2,acu)
 
 !     CALL BRI78(mur,al,F1,acu)
 
@@ -1201,7 +1201,7 @@
          Om(2,3) =-fg(3,4) - fg(4,4)
       ENDIF
 
-      CALL GAUSS(2,3,Om)
+      CALL GAUSSA(2,3,Om)
 !     WRITE(*,*) 'Free Rotation a x Ω', Om(:,3)
 
       IF (opp) THEN
@@ -3405,7 +3405,6 @@
 
       DO K = 1, N-1
         UK = T(K,N+1) / T(K,K)
-        IJ = 1
         NI = K + KL
         IF ( NI .GT. N ) NI = N
         DO I = K+1, NI
@@ -3476,15 +3475,42 @@
       ENDDO
 
       DO I = N, 1, -1
-         K = I + 1
          S = 0D0
          DO J = KL+2, KL+KU+1
+            K = I + J - ( KL + 1 )
             IF ( K .GT. N ) EXIT
             S = S + T(I,J) * T(K, KL+KU+2)
-            K = K + 1
          ENDDO
          T(I, KL+KU+2) = ( T(I, KL+KU+2) - S ) / T(I, KL+1)
       ENDDO
 
+      END SUBROUTINE
+! ======================================================================
+
+! === G A U S S   E L I M I N A T I O N  ===============================
+      SUBROUTINE GAUSSA(N,M,T)
+      IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+      DIMENSION T(N,M)
+
+      DO K = 1, N-1
+        DO I = K+1, N
+           U = T(I,K) / T(K,K)
+          DO J = K+1, M
+            T(I,J) =  T(I,J) - T(K,J) * U
+          ENDDO ! J
+        ENDDO ! I
+      ENDDO ! K
+
+      DO I = N, 1, -1
+         DO K = N+1, M
+            S = 0D0
+            DO J = I+1, N
+               S = S + T(I,J) * T(J,K)
+            ENDDO ! J
+            T(I,K) = ( T(I,K) - S ) / T(I,I)
+         ENDDO ! K
+      ENDDO ! I
+
+      RETURN
       END SUBROUTINE
 ! ======================================================================

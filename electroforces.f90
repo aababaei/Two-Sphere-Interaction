@@ -42,8 +42,8 @@
 ! ============ M E T H O D ==============
 
 !     CALL COULOMB(q1,q2,r,F12)
-      CALL D64(a1,a2,r,q1,q2,E0,psi,F1,F2,acu)
-!     CALL KCSB14(a1,a2,r,q1,q2,epsr,F12,acu)
+!     CALL D64(a1,a2,r,q1,q2,E0,psi,F1,F2,acu)
+      CALL KCSB14(a1,a2,r,q1,q2,epsr,F12,acu)
 !     CALL BPBS21(a1,a2,r,q1,q2,F12,acu)
 
 
@@ -238,7 +238,7 @@
            iN = INT(1.5 * FLOAT(iN)) ! 50% increase
          F12o = F12
 !        F21o = F21
-!        WRITE(*,*) 'n_max, F12, rel = ', iN,F12,rel
+         WRITE(*,*) 'n_max, F12, rel = ', iN,F12,rel
          GOTO 1
       ENDIF
 
@@ -289,12 +289,11 @@
       ENDDO
 
       DO I = N, 1, -1
-         K = I + 1
          S = 0D0
          DO J = KL+2, KL+KU+1
+            K = I + J - ( KL + 1 )
             IF ( K .GT. N ) EXIT
             S = S + T(I,J) * T(K, KL+KU+2)
-            K = K + 1
          ENDDO
          T(I, KL+KU+2) = ( T(I, KL+KU+2) - S ) / T(I, KL+1)
       ENDDO
